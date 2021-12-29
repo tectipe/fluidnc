@@ -259,7 +259,8 @@ namespace WebUI {
             return;
         }
 
-        String path        = _webserver->urlDecode(_webserver->uri());
+        String path = _webserver->urlDecode(_webserver->uri());
+        log_info(path);
         String contentType = getContentType(path);
         String pathWithGz  = path + ".gz";
 
@@ -355,7 +356,7 @@ namespace WebUI {
         }
         contentType.replace(KEY_IP, stmp);
         contentType.replace(KEY_QUERY, _webserver->uri());
-        _webserver->send(200, "text/html", contentType);
+        _webserver->send(404, "text/html", contentType);
     }
 
     //http SSDP xml presentation
@@ -415,12 +416,15 @@ namespace WebUI {
             cmd = _webserver->arg("plain");
         } else if (_webserver->hasArg("commandText")) {
             cmd = _webserver->arg("commandText");
+        } else if (_webserver->hasArg("cmd")) {
+            cmd = _webserver->arg("cmd");
         } else {
             _webserver->send(200, "text/plain", "Invalid command");
             return;
         }
         //if it is internal command [ESPXXX]<parameter>
         cmd.trim();
+        log_info(cmd);
         int ESPpos = cmd.indexOf("[ESP");
         if (ESPpos > -1) {
             char line[256];
@@ -1170,7 +1174,7 @@ namespace WebUI {
             list_files = false;
         }
 
-        // TODO Settings - consider using the JSONEncoder class
+        // TODO Settings - consider using the JSONencoder class
         String jsonfile = "{";
         jsonfile += "\"files\":[";
 

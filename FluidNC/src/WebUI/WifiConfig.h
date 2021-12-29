@@ -9,6 +9,7 @@
 #include "../Channel.h"      // Channel
 #include "../Error.h"        // Error
 #include "Authentication.h"  // AuthenticationLevel
+#include "JSONEncoder.h"
 
 #include <WString.h>
 
@@ -97,6 +98,11 @@ namespace WebUI {
 
         static Error listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out);
         static void  showWifiStats(Channel& out);
+        static void  showWifiStatsJSON(JSONencoder& out);
+
+        static const char* modeName();
+
+        static const char* phyModeName();
 
         ~WiFiConfig();
 

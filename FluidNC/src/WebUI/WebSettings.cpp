@@ -17,7 +17,8 @@
 #include "../Report.h"     // git_info
 #include "../InputFile.h"  // infile
 
-#include "Commands.h"  // COMMANDS::restart_MCU();
+#include "Commands.h"   // COMMANDS::restart_MCU();
+#include "WebServer.h"  // http_port()
 #include "WifiConfig.h"
 
 #include <cstring>
@@ -208,6 +209,56 @@ namespace WebUI {
         }
         Error ret = do_command_or_setting(spos, sval, auth_level, out);
         return ret;
+    }
+
+    static Error showSysStatsJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP421
+        JSONencoder j(false, out);
+        j.begin();
+        String version = "FluidNC ";
+        version += git_info;
+        j.begin_array("Status");
+        j.idval("chip id", (uint16_t)(ESP.getEfuseMac() >> 32));
+        j.idval("CPU Freq", String(ESP.getCpuFreqMHz()) + " MHz");
+        j.idval("CPU Temp", String(temperatureRead(), 1) + " C");
+        j.idval("free mem", formatBytes(ESP.getFreeHeap()));
+        j.idval("SDK", ESP.getSdkVersion());
+        j.idval("flash size", formatBytes(ESP.getFlashChipSize()));
+        j.idval("size for update", "??? MB");
+        j.idval("FS type", "SPIFFS");
+        j.idval("FS usage", "39.95 KB/169.38 KB");  // XXX
+        j.idval("baud", String((Uart0.baud / 100) * 100));
+
+        WiFiConfig::showWifiStatsJSON(j);
+        j.idval("FW ver", String("FluidNC") + git_info);
+        j.idval("FW arch", "ESP32");
+        j.end_array();
+        j.end();
+        out << '\n';
+        return Error::Ok;
+    }
+    static Error showFwInfoJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP801
+        JSONencoder j(false, out);
+        j.begin();
+        String version = "FluidNC ";
+        version += git_info;
+        j.member("FWVersion", version);
+        j.member("FWTarget", 60);
+        j.member("SDConnection", "none");
+        j.member("Authentication", "Disabled");
+        j.member("WebCommunication", "Synchronous");
+        j.member("WebSocketIP", "localhost");
+        j.member("WebSocketPort", WebUI::http_port->get() + 1);
+        j.member("Hostname", WebUI::wifi_hostname->get());
+        j.member("WiFiMode", WebUI::wifi_config.modeName());
+        j.member("WebUpdate", "Enabled");
+        j.member("Filesystem", "SPIFFS");
+        j.member("Time", "none");
+        j.member("Cam_ID", "none");
+        j.member("Cam_name", "none");
+        j.member("Axis", config->_axes->_numberAxis);
+        j.end();
+        out << '\n';
+        return Error::Ok;
     }
 
     static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
@@ -548,6 +599,8 @@ namespace WebUI {
         // RU - need user or admin password to read
         // WU - need user or admin password to set
         // WA - need admin password to set
+        new WebCommand(NULL, WEBCMD, WG, "ESP801", "Firmware/InfoJSON", showFwInfoJSON, anyState);
+        new WebCommand(NULL, WEBCMD, WU, "ESP421", "System/StatsJSON", showSysStatsJSON, anyState);
         new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState);
         new WebCommand(NULL, WEBCMD, WU, "ESP420", "System/Stats", showSysStats, anyState);
         new WebCommand("RESTART", WEBCMD, WA, "ESP444", "System/Control", setSystemMode);

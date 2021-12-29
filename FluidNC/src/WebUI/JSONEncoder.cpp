@@ -133,7 +133,11 @@ namespace WebUI {
     }
 
     // Creates a "tag":"value" member from an integer
-    void JSONencoder::member(const char* tag, int value) { member(tag, String(value)); }
+    //    void JSONencoder::member(const char* tag, int value) { member(tag, String(value)); }
+    void JSONencoder::member(const char* tag, int value) {
+        begin_member(tag);
+        stream << String(value);
+    }
 
     // Creates an Esp32_WebUI configuration item specification from
     // a value passed in as a C-style string.
@@ -164,4 +168,19 @@ namespace WebUI {
         member("S", max);
         member("M", min);
     }
+
+    void JSONencoder::idval(const char* id, const char* str) {
+        begin_object();
+        member("id", id);
+        member("value", str);
+        end_object();
+    }
+    void JSONencoder::idval(const char* id, String str) { idval(id, str.c_str()); }
+    void JSONencoder::idval(const char* id, const int val) {
+        begin_object();
+        member("id", id);
+        member("value", val);
+        end_object();
+    }
+
 }

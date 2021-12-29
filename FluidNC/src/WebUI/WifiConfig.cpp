@@ -94,6 +94,151 @@ namespace WebUI {
         return err;
     }
 
+    const char* WiFiConfig::modeName() {
+        switch (WiFi.getMode()) {
+            case WIFI_STA:
+                return "STA";
+                break;
+            case WIFI_AP:
+                return "AP";
+                break;
+            default:
+                return "none";
+                break;
+        }
+    }
+
+    const char* WiFiConfig::phyModeName() {
+        uint8_t PhyMode;
+        esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
+        switch (PhyMode) {
+            case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N:
+                return "11n";
+                break;
+            case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G:
+                return "11g";
+                break;
+            case WIFI_PROTOCOL_11B:
+                return "11b";
+                break;
+            default:
+                return "???";
+        }
+    }
+
+    static const char* authModeName() {
+        wifi_config_t conf;
+        esp_wifi_get_config(WIFI_IF_AP, &conf);
+
+        switch (conf.ap.authmode) {
+            case WIFI_AUTH_OPEN:
+                return "None";
+            case WIFI_AUTH_WEP:
+                return "WEP";
+            case WIFI_AUTH_WPA_PSK:
+                return "WPA";
+                break;
+            case WIFI_AUTH_WPA2_PSK:
+                return "WPA2";
+            default:
+                return "WPA/WPA2";
+        }
+    }
+
+    void WiFiConfig::showWifiStatsJSON(JSONencoder& j) {
+        j.idval("sleep mode", (WiFi.getSleep() ? "Modem" : "none"));
+
+        int mode = WiFi.getMode();
+        if (mode != WIFI_MODE_NULL) {
+            //Is OTA available ?
+            size_t flashsize = 0;
+            if (esp_ota_get_running_partition()) {
+                const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
+                if (partition) {
+                    flashsize = partition->size;
+                }
+            }
+            j.idval("size for update", formatBytes(flashsize));
+            j.idval("FS type", "SPIFFS");
+            String usage = formatBytes(SPIFFS.usedBytes());
+            usage += "/";
+            usage += formatBytes(SPIFFS.totalBytes());
+            j.idval("FS usage", usage);
+            j.idval("wifi", "ON");
+            j.idval("hostname: ", wifi_config.Hostname());
+            j.idval("HTTP port: ", String(web_server.port()));
+            j.idval("Telnet port: ", String(telnet_server.port()));
+            j.idval("Ftp ports", "");
+        }
+
+        switch (mode) {
+            case WIFI_STA:
+                j.idval("sta", "ON");
+                j.idval("mac", WiFi.macAddress());
+                if (WiFi.isConnected()) {
+                    j.idval("SSID", WiFi.SSID());
+                    j.idval("signal", wifi_config.getSignal(WiFi.RSSI()) + " %n");
+                    j.idval("phy mode", phyModeName());
+                    j.idval("channel", String(WiFi.channel()));
+
+                    tcpip_adapter_dhcp_status_t dhcp_status;
+                    tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
+                    j.idval("ip mode", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "dhcp" : "static"));
+                    j.idval("ip", WiFi.localIP().toString());
+                    j.idval("gw", WiFi.gatewayIP().toString());
+                    j.idval("msk", WiFi.subnetMask().toString());
+                    j.idval("DNS", WiFi.dnsIP().toString());
+                }
+                j.idval("ap", "OFF");
+                j.idval("mac", WiFi.softAPmacAddress());
+                break;
+            case WIFI_AP:
+                j.idval("ap", "ON");
+                j.idval("signal", "100 %");  // XXX
+
+                wifi_config_t conf;
+                esp_wifi_get_config(WIFI_IF_AP, &conf);
+                j.idval("ssid", (const char*)conf.ap.ssid);
+                j.idval("visible", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
+                j.idval("authentication", authModeName());
+                j.idval("max Connections", String(conf.ap.max_connection));
+
+                tcpip_adapter_dhcp_status_t dhcp_status;
+                tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
+                j.idval("dhcp server", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
+                j.idval("ip", WiFi.softAPIP().toString());
+
+                tcpip_adapter_ip_info_t ip_AP;
+                tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
+                j.idval("gw", IPAddress(ip_AP.gw.addr).toString());
+                j.idval("msk", IPAddress(ip_AP.netmask.addr).toString());
+
+                wifi_sta_list_t          station;
+                tcpip_adapter_sta_list_t tcpip_sta_list;
+                esp_wifi_ap_get_sta_list(&station);
+                tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
+
+                j.begin_array("connected channels");
+
+                for (int i = 0; i < station.num; i++) {
+                    j.begin_object();
+                    j.member("mac", wifi_config.mac2str(tcpip_sta_list.sta[i].mac));
+                    j.member("ip", IPAddress(tcpip_sta_list.sta[i].ip.addr).toString());
+                    j.end_object();
+                }
+                j.end_array();
+
+                j.idval("sta", "OFF");
+                j.idval("mac", WiFi.macAddress());
+                break;
+            default:
+                j.idval("sta", "OFF");
+                j.idval("ap", "OFF");
+        }
+        j.idval("serial", "ON");
+        j.idval("notification", (notificationsservice.started() ? "ON" : "OFF"));
+    }
+
     void WiFiConfig::showWifiStats(Channel& out) {
         out << "Sleep mode: " << (WiFi.getSleep() ? "Modem" : "None") << '\n';
         int mode = WiFi.getMode();
@@ -124,23 +269,7 @@ namespace WebUI {
                     out << WiFi.SSID() << '\n';
                     out << "Signal: " << wifi_config.getSignal(WiFi.RSSI()) << "%\n";
 
-                    uint8_t PhyMode;
-                    esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
-                    const char* modeName;
-                    switch (PhyMode) {
-                        case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N:
-                            modeName = "11n";
-                            break;
-                        case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G:
-                            modeName = "11g";
-                            break;
-                        case WIFI_PROTOCOL_11B:
-                            modeName = "11b";
-                            break;
-                        default:
-                            modeName = "???";
-                    }
-                    out << "Phy Mode: " << modeName << '\n';
+                    out << "Phy Mode: " << phyModeName() << '\n';
 
                     out << "Channel: " << String(WiFi.channel()) << '\n';
 
@@ -164,25 +293,9 @@ namespace WebUI {
                 out << "SSID: " << (const char*)conf.ap.ssid << '\n';
                 out << "Visible: " << (conf.ap.ssid_hidden == 0 ? "Yes" : "No") << '\n';
 
-                const char* mode;
-                switch (conf.ap.authmode) {
-                    case WIFI_AUTH_OPEN:
-                        mode = "None";
-                        break;
-                    case WIFI_AUTH_WEP:
-                        mode = "WEP";
-                        break;
-                    case WIFI_AUTH_WPA_PSK:
-                        mode = "WPA";
-                        break;
-                    case WIFI_AUTH_WPA2_PSK:
-                        mode = "WPA2";
-                        break;
-                    default:
-                        mode = "WPA/WPA2";
-                }
+                authModeName();
 
-                out << "Authentication: " << mode << '\n';
+                out << "Authentication: " << authModeName() << '\n';
                 out << "Max Connections: " << String(conf.ap.max_connection) << '\n';
 
                 tcpip_adapter_dhcp_status_t dhcp_status;

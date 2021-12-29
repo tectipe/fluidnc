@@ -87,5 +87,8 @@ namespace WebUI {
         void begin_webui(const char* brief, const char* full, const char* type, const char* val);
         void begin_webui(const char* brief, const char* full, const char* type, const int val);
         void begin_webui(const char* brief, const char* full, const char* type, const char* val, int min, int max);
+        void idval(const char* id, const char* str);
+        void idval(const char* id, String str);
+        void idval(const char* id, const int val);
     };
 }
