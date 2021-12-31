@@ -264,7 +264,7 @@ namespace WebUI {
     static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
         JSONencoder j(false, out);
         j.begin();
-        j.begin_array("EEPROM");
+        j.begin_array("Settings");
 
         // NVS settings
         j.setCategory("nvs");
@@ -599,10 +599,10 @@ namespace WebUI {
         // RU - need user or admin password to read
         // WU - need user or admin password to set
         // WA - need admin password to set
-        new WebCommand(NULL, WEBCMD, WG, "ESP801", "Firmware/InfoJSON", showFwInfoJSON, anyState);
-        new WebCommand(NULL, WEBCMD, WU, "ESP421", "System/StatsJSON", showSysStatsJSON, anyState);
-        new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState);
-        new WebCommand(NULL, WEBCMD, WU, "ESP420", "System/Stats", showSysStats, anyState);
+        new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/InfoJSON", showFwInfoJSON, anyState);
+        new WebCommand(NULL, WEBCMD, WU, "ESP420", "System/StatsJSON", showSysStatsJSON, anyState);
+        new WebCommand(NULL, WEBCMD, WG, "ESP800x", "Firmware/Info", showFwInfo, anyState);
+        new WebCommand(NULL, WEBCMD, WU, "ESP420x", "System/Stats", showSysStats, anyState);
         new WebCommand("RESTART", WEBCMD, WA, "ESP444", "System/Control", setSystemMode);
         new WebCommand("RESTART", WEBCMD, WA, NULL, "Bye", restart);
 

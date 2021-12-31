@@ -28,7 +28,7 @@ class WebSocketsServer;
 namespace WebUI {
     class Serial_2_Socket : public Channel {
         static const int TXBUFFERSIZE = 1200;
-        static const int RXBUFFERSIZE = 256;
+        static const int RXBUFFERSIZE = 1024;
         static const int FLUSHTIMEOUT = 500;
 
     public:
@@ -51,6 +51,7 @@ namespace WebUI {
         int  read(void);
         bool push(const uint8_t* data, size_t length);
         bool push(const char* data);
+        bool push(String s);
         void flush(void);
         void handle_flush();
         bool attachWS(WebSocketsServer* web_socket);
@@ -69,9 +70,7 @@ namespace WebUI {
         uint8_t  _TXbuffer[TXBUFFERSIZE];
         uint16_t _TXbufferSize;
 
-        uint8_t  _RXbuffer[RXBUFFERSIZE];
-        uint16_t _RXbufferSize;
-        uint16_t _RXbufferpos;
+        String _rxbuf;
     };
 
     extern Serial_2_Socket Serial2Socket;

@@ -259,8 +259,7 @@ namespace WebUI {
             return;
         }
 
-        String path = _webserver->urlDecode(_webserver->uri());
-        log_info(path);
+        String path        = _webserver->urlDecode(_webserver->uri());
         String contentType = getContentType(path);
         String pathWithGz  = path + ".gz";
 
@@ -422,11 +421,9 @@ namespace WebUI {
             _webserver->send(200, "text/plain", "Invalid command");
             return;
         }
-        //if it is internal command [ESPXXX]<parameter>
         cmd.trim();
-        log_info(cmd);
-        int ESPpos = cmd.indexOf("[ESP");
-        if (ESPpos > -1) {
+        //if it is internal command [ESPXXX]<parameter>
+        if (cmd.indexOf("[ESP") > -1) {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
             WebClient* webresponse = new WebClient(_webserver, silent);
@@ -452,32 +449,13 @@ namespace WebUI {
                 _webserver->send(401, "text/plain", "Authentication failed!\n");
                 return;
             }
-            //Instead of send several commands one by one by web  / send full set and split here
-            String scmd;
-            bool   hasError = false;
-            // TODO Settings - this is very inefficient.  get_Splited_Value() is O(n^2)
-            // when it could easily be O(n).  Also, it would be just as easy to push
-            // the entire string into Serial2Socket and pull off lines from there.
-            for (size_t sindex = 0; (scmd = get_Splited_Value(cmd, '\n', sindex)) != ""; sindex++) {
-                // 0xC2 is an HTML encoding prefix that, in UTF-8 mode,
-                // precede 0x90 and 0xa0-0bf, which are GRBL realtime commands.
-                // There are other encodings for 0x91-0x9f, so I am not sure
-                // how - or whether - those commands work.
-                // Ref: https://www.w3schools.com/tags/ref_urlencode.ASP
-                if (!silent && (scmd.length() == 2) && (scmd[0] == 0xC2)) {
-                    scmd[0] = scmd[1];
-                    scmd.remove(1, 1);
-                }
-                if (scmd.length() > 1) {
-                    scmd += "\n";
-                } else if (!is_realtime_command(scmd[0])) {
-                    scmd += "\n";
-                }
-                if (!Serial2Socket.push(scmd.c_str())) {
-                    hasError = true;
-                }
+            cmd.replace("\xC2", "");
+            const char* extra = "";
+            if (cmd.length() && (!is_realtime_command(cmd[0])) && (!cmd.endsWith("\n"))) {
+                extra = "\n";
             }
-            _webserver->send(200, "text/plain", hasError ? "Error" : "");
+            bool okay = Serial2Socket.push(cmd) && Serial2Socket.push(extra);
+            _webserver->send(200, "text/plain", okay ? "" : "Error");
         }
     }
 
@@ -1459,9 +1437,17 @@ namespace WebUI {
                 _socket_server->broadcastTXT(s);
             } break;
             case WStype_TEXT:
-            case WStype_BIN:
-                Serial2Socket.push(payload, length);
-                break;
+            case WStype_BIN: {
+                const char* pingmsg = "PING:";
+                if (length < strlen(pingmsg) || memcmp(payload, pingmsg, strlen(pingmsg)) != 0) {
+                    char s[100];
+                    memcpy(s, payload, length);
+                    s[length] = 0;
+                    log_info(s);
+                    Serial2Socket.push(payload, length);
+                }
+
+            } break;
             default:
                 break;
         }
