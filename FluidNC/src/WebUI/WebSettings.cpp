@@ -13,9 +13,10 @@
 #include "../Settings.h"
 #include "../Machine/MachineConfig.h"
 #include "../Configuration/JsonGenerator.h"
-#include "../Uart.h"       // Uart0.baud
-#include "../Report.h"     // git_info
-#include "../InputFile.h"  // infile
+#include "../Uart.h"        // Uart0.baud
+#include "../Report.h"      // git_info
+#include "../InputFile.h"   // infile
+#include "../FileSystem.h"  // FileSystem
 
 #include "Commands.h"   // COMMANDS::restart_MCU();
 #include "WebServer.h"  // http_port()
@@ -460,36 +461,13 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static void listDirJSON(fs::FS fs, const char* dirname, size_t levels, JSONencoder* j) {
-        j->begin_array("files");
-        File root = fs.open(dirname);
-        File file = root.openNextFile();
-        while (file) {
-            const char* tailName = strchr(file.name(), '/');
-            tailName             = tailName ? tailName + 1 : file.name();
-            if (file.isDirectory() && levels) {
-                j->begin_array(tailName);
-                listDirJSON(fs, file.name(), levels - 1, j);
-                j->end_array();
-            } else {
-                j->begin_object();
-                j->member("name", tailName);
-                j->member("size", file.size());
-                j->end_object();
-            }
-            file = root.openNextFile();
-        }
-        j->end_array();
+    static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        FileSystem("/localfs/").listJSON("/", out);
+        return Error::Ok;
     }
 
-    static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-        JSONencoder j(false, out);
-        j.begin();
-        listDirJSON(SPIFFS, "/", 4, &j);
-        j.member("total", SPIFFS.totalBytes());
-        j.member("used", SPIFFS.usedBytes());
-        j.member("occupation", String(long(100 * SPIFFS.usedBytes() / SPIFFS.totalBytes())));
-        j.end();
+    static Error listSDFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        FileSystem("/sd/").listJSON("/", out);
         return Error::Ok;
     }
 
@@ -614,6 +592,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
 
+        new WebCommand("path", WEBCMD, WU, NULL, "SD/ListJSON", listSDFilesJSON);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);

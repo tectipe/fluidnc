@@ -25,11 +25,14 @@ public:
     FileStream(String filename, const char* mode, const char* defaultFs = "");
     FileStream(const char* filename, const char* mode, const char* defaultFs = "");
 
+    static void canonicalPath(String& path, const char* defaultFS);
+
     String path() {
         String retval = _path;
         retval.replace("/spiffs/", "/localfs/");
         return retval;
     }
+
     int    available() override;
     int    read() override;
     int    peek() override;

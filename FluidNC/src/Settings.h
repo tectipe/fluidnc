@@ -90,7 +90,7 @@ public:
 
     // The default implementation of addWebui() does nothing.
     // Derived classes may override it to do something.
-    virtual void addWebui(WebUI::JSONencoder*) {};
+    virtual void addWebui(JSONencoder*) {};
 
     virtual Error action(char* value, WebUI::AuthenticationLevel auth_level, Channel& out) = 0;
 };
@@ -151,7 +151,7 @@ public:
 
     // The default implementation of addWebui() does nothing.
     // Derived classes may override it to do something.
-    virtual void addWebui(WebUI::JSONencoder*) {};
+    virtual void addWebui(JSONencoder*) {};
 
     virtual Error       setStringValue(char* value) = 0;
     Error               setStringValue(String s) { return setStringValue(s.c_str()); }
@@ -194,7 +194,7 @@ public:
 
     void        load();
     void        setDefault();
-    void        addWebui(WebUI::JSONencoder*);
+    void        addWebui(JSONencoder*);
     Error       setStringValue(char* value);
     const char* getStringValue();
     const char* getDefaultString();
@@ -253,7 +253,7 @@ public:
 
     void        load();
     void        setDefault();
-    void        addWebui(WebUI::JSONencoder*);
+    void        addWebui(JSONencoder*);
     Error       setStringValue(char* value);
     const char* getStringValue();
     const char* getDefaultString();
@@ -294,7 +294,7 @@ public:
 
     void        load();
     void        setDefault();
-    void        addWebui(WebUI::JSONencoder*);
+    void        addWebui(JSONencoder*);
     Error       setStringValue(char* value);
     const char* getStringValue();
     const char* getDefaultString();
@@ -332,7 +332,7 @@ public:
 
     void        load();
     void        setDefault();
-    void        addWebui(WebUI::JSONencoder*);
+    void        addWebui(JSONencoder*);
     Error       setStringValue(char* value);
     const char* getStringValue();
     const char* getDefaultString();

@@ -6,6 +6,8 @@
 
 #include "../Config.h"  // ENABLE_*
 #include "../Settings.h"
+#include "JSONencoder.h"
+#include <FS.h>
 
 namespace WebUI {
     bool  split_params(char* parameter);
@@ -15,5 +17,5 @@ namespace WebUI {
     extern StringSetting* user_password;
     extern StringSetting* admin_password;
 #endif
-
+    extern void listDirJSON(fs::FS, const char* dirname, size_t levels, JSONencoder& j);
 }

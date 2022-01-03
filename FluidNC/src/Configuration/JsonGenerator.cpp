@@ -10,7 +10,7 @@
 #include <atomic>
 
 namespace Configuration {
-    JsonGenerator::JsonGenerator(WebUI::JSONencoder& encoder) : _encoder(encoder) {
+    JsonGenerator::JsonGenerator(JSONencoder& encoder) : _encoder(encoder) {
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
 
         _currentPath[0] = '\0';

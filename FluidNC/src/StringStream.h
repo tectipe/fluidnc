@@ -6,16 +6,15 @@
 #include "Print.h"
 #include "StringRange.h"
 
-#include <vector>
-
 class StringStream : public Print {
-    std::vector<char> data_;
+    String _s;
 
 public:
+    StringStream() : _s("") {}
+
     size_t write(uint8_t c) override {
-        data_.push_back(c);
+        _s.concat(char(c));
         return 1;
     }
-
-    //    StringRange str() const { return StringRange(data_.data(), data_.data() + data_.size()); }
+    // String& str() { return _s; }
 };

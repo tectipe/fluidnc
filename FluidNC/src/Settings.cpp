@@ -177,7 +177,7 @@ const char* IntSetting::getStringValue() {
     return strval;
 }
 
-void IntSetting::addWebui(WebUI::JSONencoder* j) {
+void IntSetting::addWebui(JSONencoder* j) {
     if (getDescription()) {
         j->begin_webui(getName(), getName(), "I", getStringValue(), _minValue, _maxValue);
         j->end_object();
@@ -270,7 +270,7 @@ const char* StringSetting::getStringValue() {
     return (_checker && isPassword(_checker)) ? "******" : get();
 }
 
-void StringSetting::addWebui(WebUI::JSONencoder* j) {
+void StringSetting::addWebui(JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
@@ -382,7 +382,7 @@ void EnumSetting::showList() {
     log_info("Valid options:" << optList);
 }
 
-void EnumSetting::addWebui(WebUI::JSONencoder* j) {
+void EnumSetting::addWebui(JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
@@ -514,7 +514,7 @@ const char* IPaddrSetting::getStringValue() {
     return s.c_str();
 }
 
-void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {
+void IPaddrSetting::addWebui(JSONencoder* j) {
     if (getDescription()) {
         j->begin_webui(getName(), getName(), "A", getStringValue());
         j->end_object();

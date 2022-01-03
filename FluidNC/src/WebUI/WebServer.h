@@ -5,6 +5,8 @@
 
 #include "../Config.h"  // ENABLE_*
 #include "../FileStream.h"
+#include "JSONEncoder.h"
+#include "../FileSystem.h"
 
 #ifdef ENABLE_WIFI
 
@@ -88,8 +90,9 @@ namespace WebUI {
         static void WebUpdateUpload();
         static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
         static void cancelUpload();
-        static void handle_direct_SDFileList();
+        static void handle_direct_SDOps();
         static void SDFile_direct_upload();
+        static void SDFileList(String& path, String& status, bool list);
         static bool deleteRecursive(String path);
         static void uploadStart(String filename, size_t filesize, const char* fs);
         static void uploadWrite(uint8_t* buffer, size_t length);
@@ -97,6 +100,12 @@ namespace WebUI {
         static void uploadStop();
         static void uploadCheck(String filename, const char* fs);
         static void deleteFile(const char* filename, const char* fs);
+
+        static bool downloadFile(String& path);
+        static bool captivePage();
+        static void defaultPage();
+        static void respond(bool err, FileSystem& filesys, const String& action, String& displayName, String& dirPath);
+        static void listFiles(FileSystem& filesys, String& mount, JSONencoder& j);
 
         static uint64_t fsAvail(const char* fs);
     };
