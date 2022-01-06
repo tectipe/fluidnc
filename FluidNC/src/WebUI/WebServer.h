@@ -51,6 +51,7 @@ namespace WebUI {
 
         static long     get_client_ID();
         static uint16_t port() { return _port; }
+        static bool     usingWebUI3;
 
         ~Web_Server();
 

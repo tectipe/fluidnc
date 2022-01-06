@@ -7,8 +7,6 @@
 #include "../Settings.h"  // settings_execute_line()
 // #include "../StringStream.h"  // StringStream()
 
-#include "../Uart.h"  // Uart0
-
 #ifdef ENABLE_WIFI
 
 #    include "WifiServices.h"
@@ -46,6 +44,8 @@ namespace WebUI {
 #    include "NoFile.h"
 
 namespace WebUI {
+    bool Web_Server::usingWebUI3 = false;
+
     //Default 404
     const char PAGE_404[] =
         "<HTML>\n<HEAD>\n<title>Redirecting...</title> \n</HEAD>\n<BODY>\n<CENTER>Unknown page : $QUERY$- you will be "
@@ -343,7 +343,6 @@ namespace WebUI {
             j.member("status", status);
             j.end();
         }
-        Uart0 << jsonStr << '\n';
         _webserver->sendHeader("Cache-Control", "no-cache");
         _webserver->send(200, "application/json", jsonStr);
     }
@@ -355,19 +354,15 @@ namespace WebUI {
             return;
         }
 
-        Uart0 << "URI " << _webserver->uri() << '\n';
         String path   = _webserver->urlDecode(_webserver->uri());
         String action = _webserver->hasArg("action") ? _webserver->arg("action") : "";
-        Uart0 << "Path " << path << " action " << action << '\n';
         if (action.length()) {
             FileStream::canonicalPath(path, "/localfs");
-            Uart0 << "Canonical " << path << '\n';
             try {
                 FileSystem filesys(path);
 
                 String dir  = filesys._dir;   // path.substring(0, path.lastIndexOf("/") - 1);
                 String file = filesys._file;  // path.substring(path.lastIndexOf('/'));
-                Uart0 << "file " << file << '\n';
 
                 if (action == "delete") {
                     respond(filesys.remove(), filesys, action, file, dir);
@@ -466,17 +461,15 @@ namespace WebUI {
         AuthenticationLevel auth_level = is_authenticated();
         String              cmd        = "";
         if (_webserver->hasArg("plain")) {
-            cmd = _webserver->arg("plain");
-            Uart0 << "/command&plain=" << cmd << " " << silent << '\n';
+            cmd         = _webserver->arg("plain");
+            usingWebUI3 = false;
         } else if (_webserver->hasArg("commandText")) {
-            cmd = _webserver->arg("commandText");
-            Uart0 << "/command&commandText=" << cmd << " " << silent << '\n';
+            cmd         = _webserver->arg("commandText");
+            usingWebUI3 = false;
         } else if (_webserver->hasArg("cmd")) {
-            cmd = _webserver->arg("cmd");
-            Uart0 << "/command&cmd=" << cmd << " " << silent << '\n';
+            cmd         = _webserver->arg("cmd");
+            usingWebUI3 = true;
         } else {
-            Uart0 << "/command"
-                  << " " << silent << '\n';
             _webserver->send(200, "text/plain", "Invalid command");
             return;
         }
@@ -520,7 +513,6 @@ namespace WebUI {
 
     //login status check
     void Web_Server::handle_login() {
-        Uart0 << "/login" << '\n';
 #    ifdef ENABLE_AUTHENTICATION
         String smsg;
         String sUser, sPassword;
@@ -718,7 +710,6 @@ namespace WebUI {
         if (_webserver->hasArg("path")) {
             path += _webserver->arg("path");
         }
-        Uart0 << "files " << path << '\n';
 
         //to have a clean path
         path.trim();
@@ -819,10 +810,7 @@ namespace WebUI {
             ptmp = path.substring(0, path.length() - 1);
         }
 
-        Uart0 << "SPIFFS0 " << path << '\n';
-
         FileStream::canonicalPath(path, "/localfs");
-        Uart0 << "SPIFFS " << path << '\n';
         try {
             FileSystem filesys(path);
             respond(true, filesys, "list", filesys._file, filesys._path);
@@ -861,7 +849,6 @@ namespace WebUI {
     //SPIFFS files uploader handle
     void Web_Server::SPIFFSFileupload() {
         HTTPUpload& upload = _webserver->upload();
-        Uart0 << "/files " << upload.filename << '\n';
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::FAILED;
@@ -930,7 +917,6 @@ namespace WebUI {
         } else {
             //get current file ID
             HTTPUpload& upload = _webserver->upload();
-            Uart0 << "/updatefw " << upload.filename << '\n';
             if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
                 //Upload start
                 //**************
@@ -1086,11 +1072,8 @@ namespace WebUI {
         if (path[path.length() - 1] != '/') {
             path += "/";
         }
-        Uart0 << "/upload..." << path << '\n';
         //check if query need some action
         if (_webserver->hasArg("action")) {
-            Uart0 << "/upload&action=" << _webserver->arg("action") << "&filename=" << _webserver->arg("filename") << '\n';
-
             String shortname = "";
             String fullpath;
             bool   fileExists = false;
@@ -1361,7 +1344,6 @@ namespace WebUI {
 
     void Web_Server::SDFile_direct_upload() {
         HTTPUpload& upload = _webserver->upload();
-        Uart0 << "/upload(POST) " << upload.filename << '\n';
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::FAILED;

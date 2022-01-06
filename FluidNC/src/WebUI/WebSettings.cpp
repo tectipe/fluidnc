@@ -109,20 +109,44 @@ Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Cha
 
 namespace WebUI {
     static Error showFwInfo(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
-        out << "FW version: FluidNC " << git_info;
-        // TODO: change grbl-embedded to FluidNC after fixing WebUI
-        out << " # FW target:grbl-embedded  # FW HW:";
-        out << (config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
-        out << "  # primary sd:/sd # secondary sd:none # authentication:";
+        if (Web_Server::usingWebUI3) {
+            JSONencoder j(false, out);
+            j.begin();
+            String version = "FluidNC ";
+            version += git_info;
+            j.member("FWVersion", version);
+            j.member("FWTarget", 60);
+            j.member("SDConnection", "none");
+            j.member("Authentication", "Disabled");
+            j.member("WebCommunication", "Synchronous");
+            j.member("WebSocketIP", "localhost");
+            j.member("WebSocketPort", WebUI::http_port->get() + 1);
+            j.member("Hostname", WebUI::wifi_hostname->get());
+            j.member("WiFiMode", WebUI::wifi_config.modeName());
+            j.member("WebUpdate", "Enabled");
+            j.member("Filesystem", "SPIFFS");
+            j.member("Time", "none");
+            j.member("Cam_ID", "none");
+            j.member("Cam_name", "none");
+            j.member("Axis", config->_axes->_numberAxis);
+            j.end();
+            out << '\n';
+        } else {
+            out << "FW version: FluidNC " << git_info;
+            // TODO: change grbl-embedded to FluidNC after fixing WebUI
+            out << " # FW target:grbl-embedded  # FW HW:";
+            out << (config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
+            out << "  # primary sd:/sd # secondary sd:none # authentication:";
 #ifdef ENABLE_AUTHENTICATION
-        out << "yes";
+            out << "yes";
 #else
-        out << "no";
+            out << "no";
 #endif
-        out << wifi_config.webInfo();
+            out << wifi_config.webInfo();
 
-        //to save time in decoding `?`
-        out << " # axis:" << String(config->_axes->_numberAxis) << '\n';
+            //to save time in decoding `?`
+            out << " # axis:" << String(config->_axes->_numberAxis) << '\n';
+        }
         return Error::Ok;
     }
 
@@ -176,23 +200,48 @@ namespace WebUI {
     }
 
     static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
-        out << "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32) << '\n';
-        out << "CPU Frequency: " << ESP.getCpuFreqMHz() + "Mhz" << '\n';
-        out << "CPU Temperature: " << String(temperatureRead(), 1) << "C\n";
-        out << "Free memory: " << formatBytes(ESP.getFreeHeap()) << '\n';
-        out << "SDK: " << ESP.getSdkVersion() << '\n';
-        out << "Flash Size: " << formatBytes(ESP.getFlashChipSize()) << '\n';
+        if (Web_Server::usingWebUI3) {
+            JSONencoder j(false, out);
+            j.begin();
+            String version = "FluidNC ";
+            version += git_info;
+            j.begin_array("Status");
+            j.idval("chip id", (uint16_t)(ESP.getEfuseMac() >> 32));
+            j.idval("CPU Freq", String(ESP.getCpuFreqMHz()) + " MHz");
+            j.idval("CPU Temp", String(temperatureRead(), 1) + " C");
+            j.idval("free mem", formatBytes(ESP.getFreeHeap()));
+            j.idval("SDK", ESP.getSdkVersion());
+            j.idval("flash size", formatBytes(ESP.getFlashChipSize()));
+            j.idval("size for update", "??? MB");
+            j.idval("FS type", "SPIFFS");
+            j.idval("FS usage", "39.95 KB/169.38 KB");  // XXX
+            j.idval("baud", String((Uart0.baud / 100) * 100));
 
-        // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-        out << "Baud rate: " << String((Uart0.baud / 100) * 100) << '\n';
+            WiFiConfig::showWifiStatsJSON(j);
+            j.idval("FW ver", String("FluidNC") + git_info);
+            j.idval("FW arch", "ESP32");
+            j.end_array();
+            j.end();
+            out << '\n';
+        } else {
+            out << "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32) << '\n';
+            out << "CPU Frequency: " << ESP.getCpuFreqMHz() + "Mhz" << '\n';
+            out << "CPU Temperature: " << String(temperatureRead(), 1) << "C\n";
+            out << "Free memory: " << formatBytes(ESP.getFreeHeap()) << '\n';
+            out << "SDK: " << ESP.getSdkVersion() << '\n';
+            out << "Flash Size: " << formatBytes(ESP.getFlashChipSize()) << '\n';
 
-        WiFiConfig::showWifiStats(out);
+            // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
+            out << "Baud rate: " << String((Uart0.baud / 100) * 100) << '\n';
 
-        String info = bt_config.info();
-        if (info.length()) {
-            out << info << '\n';
+            WiFiConfig::showWifiStats(out);
+
+            String info = bt_config.info();
+            if (info.length()) {
+                out << info << '\n';
+            }
+            out << "FW version: FluidNC " << git_info << '\n';
         }
-        out << "FW version: FluidNC " << git_info << '\n';
         return Error::Ok;
     }
 
@@ -212,60 +261,10 @@ namespace WebUI {
         return ret;
     }
 
-    static Error showSysStatsJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP421
-        JSONencoder j(false, out);
-        j.begin();
-        String version = "FluidNC ";
-        version += git_info;
-        j.begin_array("Status");
-        j.idval("chip id", (uint16_t)(ESP.getEfuseMac() >> 32));
-        j.idval("CPU Freq", String(ESP.getCpuFreqMHz()) + " MHz");
-        j.idval("CPU Temp", String(temperatureRead(), 1) + " C");
-        j.idval("free mem", formatBytes(ESP.getFreeHeap()));
-        j.idval("SDK", ESP.getSdkVersion());
-        j.idval("flash size", formatBytes(ESP.getFlashChipSize()));
-        j.idval("size for update", "??? MB");
-        j.idval("FS type", "SPIFFS");
-        j.idval("FS usage", "39.95 KB/169.38 KB");  // XXX
-        j.idval("baud", String((Uart0.baud / 100) * 100));
-
-        WiFiConfig::showWifiStatsJSON(j);
-        j.idval("FW ver", String("FluidNC") + git_info);
-        j.idval("FW arch", "ESP32");
-        j.end_array();
-        j.end();
-        out << '\n';
-        return Error::Ok;
-    }
-    static Error showFwInfoJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP801
-        JSONencoder j(false, out);
-        j.begin();
-        String version = "FluidNC ";
-        version += git_info;
-        j.member("FWVersion", version);
-        j.member("FWTarget", 60);
-        j.member("SDConnection", "none");
-        j.member("Authentication", "Disabled");
-        j.member("WebCommunication", "Synchronous");
-        j.member("WebSocketIP", "localhost");
-        j.member("WebSocketPort", WebUI::http_port->get() + 1);
-        j.member("Hostname", WebUI::wifi_hostname->get());
-        j.member("WiFiMode", WebUI::wifi_config.modeName());
-        j.member("WebUpdate", "Enabled");
-        j.member("Filesystem", "SPIFFS");
-        j.member("Time", "none");
-        j.member("Cam_ID", "none");
-        j.member("Cam_name", "none");
-        j.member("Axis", config->_axes->_numberAxis);
-        j.end();
-        out << '\n';
-        return Error::Ok;
-    }
-
     static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
         JSONencoder j(false, out);
         j.begin();
-        j.begin_array("Settings");
+        j.begin_array(Web_Server::usingWebUI3 ? "Settings" : "EEPROM");
 
         // NVS settings
         j.setCategory("nvs");
@@ -581,10 +580,8 @@ namespace WebUI {
         // RU - need user or admin password to read
         // WU - need user or admin password to set
         // WA - need admin password to set
-        new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/InfoJSON", showFwInfoJSON, anyState);
-        new WebCommand(NULL, WEBCMD, WU, "ESP420", "System/StatsJSON", showSysStatsJSON, anyState);
-        new WebCommand(NULL, WEBCMD, WG, "ESP800x", "Firmware/Info", showFwInfo, anyState);
-        new WebCommand(NULL, WEBCMD, WU, "ESP420x", "System/Stats", showSysStats, anyState);
+        new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/InfoJSON", showFwInfo, anyState);
+        new WebCommand(NULL, WEBCMD, WU, "ESP420", "System/StatsJSON", showSysStats, anyState);
         new WebCommand("RESTART", WEBCMD, WA, "ESP444", "System/Control", setSystemMode);
         new WebCommand("RESTART", WEBCMD, WA, NULL, "Bye", restart);
 

@@ -2,6 +2,7 @@
 
 #include "JSONEncoder.h"
 #include "../Report.h"
+#include "WebServer.h"  // usingWebUI3
 
 // Constructor.  If _pretty is true, newlines are
 // inserted into the JSON string for easy reading.
@@ -140,10 +141,15 @@ void JSONencoder::member(const char* tag, String value) {
 }
 
 // Creates a "tag":"value" member from an integer
-//    void JSONencoder::member(const char* tag, int value) { member(tag, String(value)); }
 void JSONencoder::member(const char* tag, int value) {
-    begin_member(tag);
-    stream << String(value);
+    if (WebUI::Web_Server::usingWebUI3) {
+        // WebUI3 uses proper JSON integer encoding
+        begin_member(tag);
+        stream << String(value);
+    } else {
+        // WebUI3 encodes JSON integers as quoted strings
+        member(tag, String(value));
+    }
 }
 
 // Creates an Esp32_WebUI configuration item specification from
