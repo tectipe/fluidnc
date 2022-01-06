@@ -233,7 +233,6 @@ namespace WebUI {
     //Root of Webserver/////////////////////////////////////////////////////
 
     void Web_Server::handle_root() {
-        Uart0 << "/" << '\n';
         String path        = "/index.html";
         String contentType = getContentType(path);
         String pathWithGz  = path + ".gz";
@@ -335,12 +334,13 @@ namespace WebUI {
     void Web_Server::respond(bool ok, FileSystem& filesys, const String& action, String& displayName, String& listPath) {
         StreamString jsonStr;
 
-        if (ok && listPath.length()) {
-            filesys.listJSON(listPath, jsonStr);
+        String status = ok ? "Ok" : action + " " + displayName + " failed";
+        if (listPath.length()) {
+            filesys.listJSON(listPath, status, jsonStr);
         } else {
             JSONencoder j(false, jsonStr);
             j.begin();
-            j.member("status", action + " " + displayName + " failed");
+            j.member("status", status);
             j.end();
         }
         Uart0 << jsonStr << '\n';
@@ -361,34 +361,39 @@ namespace WebUI {
         Uart0 << "Path " << path << " action " << action << '\n';
         if (action.length()) {
             FileStream::canonicalPath(path, "/localfs");
-            Uart0 << path << '\n';
-            FileSystem filesys(path);
-            String     dir  = filesys._dir;   // path.substring(0, path.lastIndexOf("/") - 1);
-            String     file = filesys._file;  // path.substring(path.lastIndexOf('/'));
-            Uart0 << "file " << file << '\n';
+            Uart0 << "Canonical " << path << '\n';
+            try {
+                FileSystem filesys(path);
 
-            if (action == "delete") {
-                respond(filesys.remove(), filesys, action, file, dir);
-                config->_sdCard->end();
-                return;
-            }
-            if (action == "createdir") {
-                respond(filesys.mkdir(), filesys, action, file, dir);
-                // XXX deleteRecursive(path);
+                String dir  = filesys._dir;   // path.substring(0, path.lastIndexOf("/") - 1);
+                String file = filesys._file;  // path.substring(path.lastIndexOf('/'));
+                Uart0 << "file " << file << '\n';
 
+                if (action == "delete") {
+                    respond(filesys.remove(), filesys, action, file, dir);
+                    config->_sdCard->end();
+                    return;
+                }
+                if (action == "createdir") {
+                    respond(filesys.mkdir(), filesys, action, file, dir);
+                    return;
+                }
+                if (action == "deletedir") {
+                    // XXX deleteRecursive(path);
+                    respond(filesys.deleteRecursive(), filesys, action, file, dir);
+                    // respond(filesys.rmdir(), filesys, action, file, dir);
+                    return;
+                }
+                if (action == "list") {
+                    respond(true, filesys, action, file, filesys._path);
+                    return;
+                }
+                _webserver->send(404, "text/html", String("Invalid action: ") + action);
+                return;
+            } catch (SDCard::State err) {
+                _webserver->send(404, "text/html", "Inaccessible filesystem");
                 return;
             }
-            if (action == "deletedir") {
-                // XXX deleteRecursive(path);
-                respond(filesys.rmdir(), filesys, action, file, dir);
-                return;
-            }
-            if (action == "list") {
-                respond(true, filesys, action, file, filesys._path);
-                return;
-            }
-            _webserver->send(404, "text/html", String("Invalid action: ") + action);
-            return;
         }
 
         if (path.length() && downloadFile(path)) {
@@ -814,11 +819,14 @@ namespace WebUI {
             ptmp = path.substring(0, path.length() - 1);
         }
 
+        Uart0 << "SPIFFS0 " << path << '\n';
+
         FileStream::canonicalPath(path, "/localfs");
         Uart0 << "SPIFFS " << path << '\n';
-        FileSystem filesys(path);
-
-        respond(true, filesys, "list", filesys._file, filesys._path);
+        try {
+            FileSystem filesys(path);
+            respond(true, filesys, "list", filesys._file, filesys._path);
+        } catch (SDCard::State err) { _webserver->send(404, "text/html", "Inaccessible filesystem"); }
     }
 
     //push error code and message to websocket

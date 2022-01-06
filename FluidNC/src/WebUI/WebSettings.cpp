@@ -462,13 +462,17 @@ namespace WebUI {
     }
 
     static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-        FileSystem("/localfs/").listJSON("/", out);
-        return Error::Ok;
+        try {
+            FileSystem("/localfs/").listJSON("/", "Ok", out);
+            return Error::Ok;
+        } catch (SDCard::State err) { return Error::FsFailedMount; }
     }
 
     static Error listSDFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-        FileSystem("/sd/").listJSON("/", out);
-        return Error::Ok;
+        try {
+            FileSystem("/sd/").listJSON("/", "Ok", out);
+            return Error::Ok;
+        } catch (SDCard::State err) { return Error::FsFailedMount; }
     }
 
     static Error showSDStatus(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200

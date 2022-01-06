@@ -84,7 +84,9 @@ void FileStream::canonicalPath(String& path, const char* defaultFs) {
     if (!strcmp(defaultFs, "/localfs")) {
         // If the default filesystem is /localfs, replace the initial /
         // with, for example, "/spiffs/", instead of the surrogate
-        path.replace("/", actualLocalFs);
+        // Do not use path.replace because it affects all occurrences.
+        path.remove(0, 1);
+        path = actualLocalFs + path;
         return;
     }
     // If the default filesystem is not /localfs, insert

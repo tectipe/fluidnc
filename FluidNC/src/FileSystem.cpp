@@ -69,40 +69,114 @@ uint64_t FileSystem::usedBytes() {
     return _isSD ? SD.usedBytes() : (uint64_t)SPIFFS.usedBytes();
 }
 
+bool FileSystem::tailName(File& file, String& name) {
+    const char* fn = file.name();
+    const char* tn = strrchr(fn, '/');
+    if (_hasSubdirs) {
+        name = tn ? (tn + 1) : fn;
+        return true;
+    } else {
+        Uart0 << "NoSubdirs fn " << fn << " tn " << tn << " path " << _path << '\n';
+        if (isDirectory(file)) {
+            name = fn;
+            name = name.substring(0, name.length() - 2);
+            if (_path == name) {
+                return false;
+            }
+            name = name.substring(1);
+            return true;
+        } else {
+            name = (tn + 1);
+            return true;
+        }
+    }
+}
+
+bool FileSystem::isDirectory(File& file) {
+    if (_hasSubdirs) {
+        return file.isDirectory();
+    } else {
+        const char* tn = strrchr(file.name(), '/');
+        return tn && tn[1] == '.' && tn[2] == '\0';
+    }
+}
+
 void FileSystem::listDirJSON(const char* dirname, size_t levels, JSONencoder& j) {
     File root = theFS().open(dirname);
 
     File file = root.openNextFile();
     j.begin_array("files");
     while (file) {
-        const char* tailName = strrchr(file.name(), '/');
-        tailName             = tailName ? tailName + 1 : file.name();
-        log_info(file.name() << " " << tailName);
-        if (file.isDirectory() && levels) {
-            j.begin_array(tailName);
-            listDirJSON(file.name(), levels - 1, j);
-            j.end_array();
-        } else {
-            j.begin_object();
-            j.member("name", tailName);
-            j.member("size", file.isDirectory() ? -1 : file.size());
-            j.end_object();
+        String tail;
+        bool   showFile = tailName(file, tail);
+        if (showFile) {
+            //        log_info(file.name() << " " << tailName);
+            if (isDirectory(file) && levels) {
+                j.begin_array(tail.c_str());
+                listDirJSON(file.name(), levels - 1, j);
+                j.end_array();
+            } else {
+                j.begin_object();
+                j.member("name", tail.c_str());
+                j.member("size", isDirectory(file) ? -1 : file.size());
+                j.end_object();
+            }
         }
         file = root.openNextFile();
     }
     j.end_array();
 }
 
-void FileSystem::listJSON(const String& path, Print& out) {
+void FileSystem::listJSON(const String& path, const String& status, Print& out) {
     JSONencoder j(false, out);
     j.begin();
     listDirJSON(path.c_str(), 0, j);
     j.member("path", path);
-    j.member("status", "Ok");
+    j.member("status", status);
     size_t total = totalBytes();
     size_t used  = usedBytes();
     j.member("total", formatBytes(total));
     j.member("used", formatBytes(used));
     j.member("occupation", String(100 * used / total));
     j.end();
+}
+
+bool FileSystem::deleteRecursive(const String& path) {
+    bool result = true;
+    File file   = theFS().open(path);
+    if (!file) {
+        return false;
+    }
+    if (!file.isDirectory()) {
+        file.close();
+        //return if success or not
+        return theFS().remove(path);
+    }
+    file.rewindDirectory();
+    while (true) {
+        File entry = file.openNextFile();
+        if (!entry) {
+            break;
+        }
+        String entryPath = entry.name();
+        if (entry.isDirectory()) {
+            entry.close();
+            if (!deleteRecursive(entryPath)) {
+                result = false;
+            }
+        } else {
+            entry.close();
+            if (!theFS().remove(entryPath)) {
+                result = false;
+                break;
+            }
+        }
+        // COMMANDS::wait(0);  //wdtFeed
+    }
+    file.close();
+    return result ? theFS().rmdir(path) : false;
+}
+
+bool FileSystem::deleteRecursive() {
+    return deleteRecursive(_path);
 }
