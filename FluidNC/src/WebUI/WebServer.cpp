@@ -44,8 +44,6 @@ namespace WebUI {
 #    include "NoFile.h"
 
 namespace WebUI {
-    bool Web_Server::usingWebUI3 = false;
-
     //Default 404
     const char PAGE_404[] =
         "<HTML>\n<HEAD>\n<title>Redirecting...</title> \n</HEAD>\n<BODY>\n<CENTER>Unknown page : $QUERY$- you will be "
@@ -374,9 +372,7 @@ namespace WebUI {
                     return;
                 }
                 if (action == "deletedir") {
-                    // XXX deleteRecursive(path);
                     respond(filesys.deleteRecursive(), filesys, action, file, dir);
-                    // respond(filesys.rmdir(), filesys, action, file, dir);
                     return;
                 }
                 if (action == "list") {
@@ -461,14 +457,11 @@ namespace WebUI {
         AuthenticationLevel auth_level = is_authenticated();
         String              cmd        = "";
         if (_webserver->hasArg("plain")) {
-            cmd         = _webserver->arg("plain");
-            usingWebUI3 = false;
+            cmd = _webserver->arg("plain");
         } else if (_webserver->hasArg("commandText")) {
-            cmd         = _webserver->arg("commandText");
-            usingWebUI3 = false;
+            cmd = _webserver->arg("commandText");
         } else if (_webserver->hasArg("cmd")) {
-            cmd         = _webserver->arg("cmd");
-            usingWebUI3 = true;
+            cmd = _webserver->arg("cmd");
         } else {
             _webserver->send(200, "text/plain", "Invalid command");
             return;
@@ -684,6 +677,7 @@ namespace WebUI {
     //SPIFFS
     //SPIFFS files list and file commands
     void Web_Server::handleFileList() {
+#    ifndef OMIT_WEBUI2_SUPPORT
         AuthenticationLevel auth_level = is_authenticated();
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::NONE;
@@ -815,6 +809,7 @@ namespace WebUI {
             FileSystem filesys(path);
             respond(true, filesys, "list", filesys._file, filesys._path);
         } catch (SDCard::State err) { _webserver->send(404, "text/html", "Inaccessible filesystem"); }
+#    endif
     }
 
     //push error code and message to websocket
@@ -853,6 +848,7 @@ namespace WebUI {
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::FAILED;
             log_info("Upload rejected");
+            _webserver->send(401, "application/json", "{\"status\":\"Authentication failed!\"}");
             pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
         } else {
             if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
@@ -1039,6 +1035,7 @@ namespace WebUI {
 
     //direct SD files list//////////////////////////////////////////////////
     void Web_Server::handle_direct_SDOps() {
+#    ifndef OMIT_WEBUI2_SUPPORT
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::NONE;
@@ -1135,8 +1132,10 @@ namespace WebUI {
         bool nolist = _webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes";
 
         SDFileList(path, sstatus, !nolist);
+#    endif
     }
 
+#    ifndef OMIT_WEBUI2_SUPPORT
     void Web_Server::SDFileList(String& path, String& status, bool list) {
         StreamString jsonStr;
         JSONencoder  j(false, jsonStr);
@@ -1212,7 +1211,7 @@ namespace WebUI {
         _webserver->send(200, "application/json", jsonStr);
         config->_sdCard->end();
     }
-
+#    endif
     void Web_Server::deleteFile(const char* filename, const char* fs) {
         bool isSD = !strcmp(fs, "/sd");
         if (isSD) {

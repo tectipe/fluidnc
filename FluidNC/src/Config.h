@@ -222,3 +222,5 @@ const double PARKING_PULLOUT_INCREMENT = 5.0;    // Spindle pull-out and plunge 
 // #define INCLUDE_OLED_BASIC
 
 // #define DEBUG_STEPPING
+
+// #define OMIT_WEBUI2_SUPPORT

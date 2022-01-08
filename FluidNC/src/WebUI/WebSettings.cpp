@@ -109,7 +109,22 @@ Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Cha
 
 namespace WebUI {
     static Error showFwInfo(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
-        if (Web_Server::usingWebUI3) {
+        if (parameter && strcmp(parameter, "plain") == 0) {
+            out << "FW version: FluidNC " << git_info;
+            // TODO: change grbl-embedded to FluidNC after fixing WebUI
+            out << " # FW target:grbl-embedded  # FW HW:";
+            out << (config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
+            out << "  # primary sd:/sd # secondary sd:none # authentication:";
+#ifdef ENABLE_AUTHENTICATION
+            out << "yes";
+#else
+            out << "no";
+#endif
+            out << wifi_config.webInfo();
+
+            //to save time in decoding `?`
+            out << " # axis:" << String(config->_axes->_numberAxis) << '\n';
+        } else {
             JSONencoder j(false, out);
             j.begin();
             String version = "FluidNC ";
@@ -131,21 +146,6 @@ namespace WebUI {
             j.member("Axis", config->_axes->_numberAxis);
             j.end();
             out << '\n';
-        } else {
-            out << "FW version: FluidNC " << git_info;
-            // TODO: change grbl-embedded to FluidNC after fixing WebUI
-            out << " # FW target:grbl-embedded  # FW HW:";
-            out << (config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
-            out << "  # primary sd:/sd # secondary sd:none # authentication:";
-#ifdef ENABLE_AUTHENTICATION
-            out << "yes";
-#else
-            out << "no";
-#endif
-            out << wifi_config.webInfo();
-
-            //to save time in decoding `?`
-            out << " # axis:" << String(config->_axes->_numberAxis) << '\n';
         }
         return Error::Ok;
     }
@@ -200,7 +200,26 @@ namespace WebUI {
     }
 
     static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
-        if (Web_Server::usingWebUI3) {
+        if (parameter && strcmp(parameter, "plain") == 0) {
+            Uart0 << "parameter " << parameter << '\n';
+            out << "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32) << '\n';
+            out << "CPU Frequency: " << ESP.getCpuFreqMHz() + "Mhz" << '\n';
+            out << "CPU Temperature: " << String(temperatureRead(), 1) << "C\n";
+            out << "Free memory: " << formatBytes(ESP.getFreeHeap()) << '\n';
+            out << "SDK: " << ESP.getSdkVersion() << '\n';
+            out << "Flash Size: " << formatBytes(ESP.getFlashChipSize()) << '\n';
+
+            // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
+            out << "Baud rate: " << String((Uart0.baud / 100) * 100) << '\n';
+
+            WiFiConfig::showWifiStats(out);
+
+            String info = bt_config.info();
+            if (info.length()) {
+                out << info << '\n';
+            }
+            out << "FW version: FluidNC " << git_info << '\n';
+        } else {
             JSONencoder j(false, out);
             j.begin();
             String version = "FluidNC ";
@@ -223,24 +242,6 @@ namespace WebUI {
             j.end_array();
             j.end();
             out << '\n';
-        } else {
-            out << "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32) << '\n';
-            out << "CPU Frequency: " << ESP.getCpuFreqMHz() + "Mhz" << '\n';
-            out << "CPU Temperature: " << String(temperatureRead(), 1) << "C\n";
-            out << "Free memory: " << formatBytes(ESP.getFreeHeap()) << '\n';
-            out << "SDK: " << ESP.getSdkVersion() << '\n';
-            out << "Flash Size: " << formatBytes(ESP.getFlashChipSize()) << '\n';
-
-            // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-            out << "Baud rate: " << String((Uart0.baud / 100) * 100) << '\n';
-
-            WiFiConfig::showWifiStats(out);
-
-            String info = bt_config.info();
-            if (info.length()) {
-                out << info << '\n';
-            }
-            out << "FW version: FluidNC " << git_info << '\n';
         }
         return Error::Ok;
     }
@@ -264,7 +265,7 @@ namespace WebUI {
     static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
         JSONencoder j(false, out);
         j.begin();
-        j.begin_array(Web_Server::usingWebUI3 ? "Settings" : "EEPROM");
+        j.begin_array("Settings");
 
         // NVS settings
         j.setCategory("nvs");
