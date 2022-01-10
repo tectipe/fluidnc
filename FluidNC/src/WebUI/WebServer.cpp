@@ -454,18 +454,29 @@ namespace WebUI {
         //       }
         //    }
         //}
+        boolean             plain      = false;
         AuthenticationLevel auth_level = is_authenticated();
         String              cmd        = "";
         if (_webserver->hasArg("plain")) {
-            cmd = _webserver->arg("plain");
+            cmd   = _webserver->arg("plain");
+            plain = true;
+            if (cmd == "[ESP800]") {
+                cmd += "plain";
+            }
         } else if (_webserver->hasArg("commandText")) {
-            cmd = _webserver->arg("commandText");
+            cmd   = _webserver->arg("commandText");
+            plain = true;
         } else if (_webserver->hasArg("cmd")) {
             cmd = _webserver->arg("cmd");
         } else {
             _webserver->send(200, "text/plain", "Invalid command");
             return;
         }
+        // XXX if has "Content-Type: application/json", set plain to false
+        if (plain && cmd == "[ESP800]") {
+            cmd += "plain";
+        }
+
         cmd.trim();
         //if it is internal command [ESPXXX]<parameter>
         if (cmd.indexOf("[ESP") > -1) {
