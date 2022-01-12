@@ -10,6 +10,7 @@
 
 #ifdef ENABLE_WIFI
 
+#    include <WebServer.h>
 #    include "../Settings.h"
 #    include "Authentication.h"  // AuthenticationLevel
 #    include "Commands.h"
@@ -76,6 +77,7 @@ namespace WebUI {
         static AuthenticationIP*   GetAuth(IPAddress ip, const char* sessionID);
         static AuthenticationLevel ResetAuthIP(IPAddress ip, const char* sessionID);
 #    endif
+        static void webDAV(String& path, HTTPMethod method);
         static void handle_SSDP();
         static void handle_root();
         static void handle_login();

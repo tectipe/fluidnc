@@ -22,6 +22,7 @@ private:
     bool _isSD;
     bool _hasSubdirs = false;
     bool deleteRecursive(const String& path);
+    bool _fileIsDir = false;
 
 public:
     FileSystem(const String& path);
@@ -49,11 +50,12 @@ public:
         // in the ESP IDK ignores the name argument and always succeeds,
         // which causes the Arduino FS framework to think that mkdir is
         // unnecessary and successful.
-        return _hasSubdirs && theFS().mkdir(_path);
+        return _hasSubdirs && theFS().mkdir(_file == "" ? _dir : _path);
     }
     bool rmdir() { return _hasSubdirs && theFS().rmdir(_path); }
 
     bool tailName(File& file, String& name);
+    bool fileIsDirectory() { return _fileIsDir; }
     bool isDirectory(File& file);
 
     void listDirJSON(const char* dirname, size_t levels, JSONencoder&);

@@ -341,8 +341,36 @@ namespace WebUI {
             j.member("status", status);
             j.end();
         }
+        jsonStr += '\n';
         _webserver->sendHeader("Cache-Control", "no-cache");
         _webserver->send(200, "application/json", jsonStr);
+    }
+
+    void Web_Server::webDAV(String& path, HTTPMethod method) {
+        FileStream::canonicalPath(path, "/localfs");
+        try {
+            FileSystem filesys(path);
+
+            String dir  = filesys._dir;   // path.substring(0, path.lastIndexOf("/") - 1);
+            String file = filesys._file;  // path.substring(path.lastIndexOf('/'));
+            Uart0 << "dir " << dir << " file " << file << '\n';
+
+            switch (method) {
+                case HTTP_DELETE:
+                    if (filesys.fileIsDirectory()) {
+                        respond(filesys.deleteRecursive(), filesys, "delete directory", file, dir);
+                    } else {
+                        respond(filesys.remove(), filesys, "delete", file, dir);
+                    }
+                    break;
+                case HTTP_MKCOL:
+                    Uart0 << "MKCOL " << path << '\n';
+                    respond(filesys.mkdir(), filesys, "create directory", file, dir);
+                    break;
+                default:
+                    break;
+            }
+        } catch (SDCard::State err) { _webserver->send(404, "text/html", "Inaccessible filesystem"); }
     }
 
     void Web_Server::handle_not_found() {
@@ -352,15 +380,19 @@ namespace WebUI {
             return;
         }
 
-        String path   = _webserver->urlDecode(_webserver->uri());
+        String     path   = _webserver->urlDecode(_webserver->uri());
+        HTTPMethod method = _webserver->method();
+        if (method == HTTP_DELETE || method == HTTP_MKCOL) {
+            return webDAV(path, method);
+        }
         String action = _webserver->hasArg("action") ? _webserver->arg("action") : "";
         if (action.length()) {
             FileStream::canonicalPath(path, "/localfs");
             try {
                 FileSystem filesys(path);
 
-                String dir  = filesys._dir;   // path.substring(0, path.lastIndexOf("/") - 1);
-                String file = filesys._file;  // path.substring(path.lastIndexOf('/'));
+                String dir  = filesys._dir;
+                String file = filesys._file;
 
                 if (action == "delete") {
                     respond(filesys.remove(), filesys, action, file, dir);

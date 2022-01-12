@@ -31,22 +31,24 @@ FileSystem::FileSystem(const String& fullPath) {
     _path    = fullPath.substring(loc);
 
     if (_hasSubdirs) {
-        _dir = _path;
-        loc  = _dir.lastIndexOf('/');
+        _fileIsDir   = _path.endsWith("/");
+        auto pathLen = _path.length();
+        if (_fileIsDir && pathLen > 1) {
+            _path = _path.substring(0, pathLen - 1);
+        }
+
+        loc   = _path.lastIndexOf('/');
+        _file = _path.substring(loc + 1);
         if (loc > 0) {
-            _dir = _dir.substring(0, loc);
+            _dir = _path.substring(0, loc);
         } else {
             _dir = "/";
         }
-
-        _file = _path;
-        loc   = _file.lastIndexOf('/');
-        _file = _file.substring(loc + 1);
     } else {
         _dir  = "/";
         _file = _path.substring(1);
     }
-    Uart0 << "path " << _path << " dir " << _dir << " file " << _file << '\n';
+    Uart0 << "path: " << _path << " dir: " << _dir << " file: " << _file << '\n';
 }
 
 FileSystem::~FileSystem() {
@@ -128,7 +130,7 @@ void FileSystem::listDirJSON(const char* dirname, size_t levels, JSONencoder& j)
 }
 
 void FileSystem::listJSON(const String& path, const String& status, Print& out) {
-    JSONencoder j(false, out);
+    JSONencoder j(true, out);
     j.begin();
     listDirJSON(path.c_str(), 0, j);
     j.member("path", path);
