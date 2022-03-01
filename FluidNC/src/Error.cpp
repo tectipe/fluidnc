@@ -71,6 +71,7 @@ std::map<Error, const char*> ErrorNames = {
     { Error::AnotherInterfaceBusy, "Another interface is busy" },
     { Error::BadPinSpecification, "Bad Pin Specification" },
     { Error::JogCancelled, "Jog Cancelled" },
+    { Error::CommandAborted, "System abort during command execution" },
     { Error::ConfigurationInvalid, "Configuration is invalid. Check boot messages for ERR's." },
     { Error::UploadFailed, "File Upload Failed" },
     { Error::DownloadFailed, "File Download Failed" },

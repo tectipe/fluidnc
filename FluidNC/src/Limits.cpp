@@ -76,7 +76,7 @@ void constrainToSoftLimits(float* cartesian) {
 // Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
 // the workspace volume is in all negative space, and the system is in normal operation.
 // NOTE: Used by jogging to limit travel within soft-limit volume.
-void limits_soft_check(float* cartesian) {
+bool limits_soft_check(float* cartesian) {
     bool limit_error = false;
 
     auto axes   = config->_axes;
@@ -101,7 +101,7 @@ void limits_soft_check(float* cartesian) {
                 pollChannels();
                 protocol_execute_realtime();
                 if (sys.abort) {
-                    return;
+                    return true;
                 }
             } while (sys.state != State::Idle);
         }
@@ -109,7 +109,9 @@ void limits_soft_check(float* cartesian) {
         mc_reset();                      // Issue system reset and ensure spindle and coolant are shutdown.
         rtAlarm = ExecAlarm::SoftLimit;  // Indicate soft limit critical event
         protocol_execute_realtime();     // Execute to enter critical event loop and system abort
+        return true;
     }
+    return false;
 }
 
 #ifdef LATER  // We need to rethink debouncing

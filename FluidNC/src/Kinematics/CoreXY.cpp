@@ -265,7 +265,7 @@ namespace Kinematics {
         pl_data = planner data (see the definition of this type to see what it is)
         position = an MAX_N_AXIS array of where the machine is starting from for this move
     */
-    bool CoreXY::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
+    Error CoreXY::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         float dx, dy, dz;  // distances in each cartesian axis
 
         //log_info("cartesian_to_motors position (" << position[X_AXIS] << "," << position[Y_AXIS] << ")");
@@ -290,7 +290,7 @@ namespace Kinematics {
         return mc_move_motors(motors, pl_data);
 
         // TO DO don't need a feedrate for rapids
-        return true;
+        return Error::Ok;
     }
 
     /*

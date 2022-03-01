@@ -45,15 +45,14 @@ void mc_init() {
 // mc_linear and plan_buffer_line is done primarily to place non-planner-type functions from being
 // in the planner and to let backlash compensation or canned cycle integration simple and direct.
 // returns true if line was submitted to planner, or false if intentionally dropped.
-bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
-    bool submitted_result = false;
+Error mc_move_motors(float* target, plan_line_data_t* pl_data) {
     // store the plan data so it can be cancelled by the protocol system if needed
     mc_pl_data_inflight = pl_data;
 
-    // If in check gcode mode, prevent motion by blocking planner. Soft limits still work.
+    // Do not plan any motion in check gcode mode,
     if (sys.state == State::CheckMode) {
         mc_pl_data_inflight = NULL;
-        return submitted_result;  // Bail, if system abort.
+        return Error::Ok;
     }
     // NOTE: Backlash compensation may be installed here. It will need direction info to track when
     // to insert a backlash line motion(s) before the intended line motion and will require its own
@@ -80,17 +79,18 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
         protocol_execute_realtime();
         if (sys.abort) {
             mc_pl_data_inflight = NULL;
-            return submitted_result;  // Bail, if system abort.
+            return Error::CommandAborted;  // Bail, if system abort.
         }
     }
 
     // Plan and queue motion into planner buffer
     if (mc_pl_data_inflight == pl_data) {
         plan_buffer_line(target, pl_data);
-        submitted_result = true;
+        mc_pl_data_inflight = NULL;
+        return Error::Ok;
     }
     mc_pl_data_inflight = NULL;
-    return submitted_result;
+    return Error::JogCancelled;
 }
 
 void mc_cancel_jog() {
@@ -102,8 +102,10 @@ void mc_cancel_jog() {
 // Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
-bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-    limits_soft_check(target);
+Error mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
+    if (limits_soft_check(target)) {
+        return Error::SoftLimitError;
+    }
     return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
@@ -114,15 +116,15 @@ bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
 // The arc is approximated by generating a huge number of tiny, linear segments. The chordal tolerance
 // of each segment is configured in the arc_tolerance setting, which is defined to be the maximum normal
 // distance from segment to the circle when the end points both lie on the circle.
-void mc_arc(float*            target,
-            plan_line_data_t* pl_data,
-            float*            position,
-            float*            offset,
-            float             radius,
-            size_t            axis_0,
-            size_t            axis_1,
-            size_t            axis_linear,
-            bool              is_clockwise_arc) {
+Error mc_arc(float*            target,
+             plan_line_data_t* pl_data,
+             float*            position,
+             float*            offset,
+             float             radius,
+             size_t            axis_0,
+             size_t            axis_1,
+             size_t            axis_linear,
+             bool              is_clockwise_arc) {
     float center_axis0 = position[axis_0] + offset[axis_0];
     float center_axis1 = position[axis_1] + offset[axis_1];
     float r_axis0      = -offset[axis_0];  // Radius vector from center to current location
@@ -228,18 +230,22 @@ void mc_arc(float*            target,
                 position[i] += linear_per_segment[i];
             }
             pl_data->feed_rate = original_feedrate;  // This restores the feedrate kinematics may have altered
-            mc_linear(position, pl_data, previous_position);
+            Error err          = mc_linear(position, pl_data, previous_position);
+            if (err != Error::Ok) {
+                return err;
+            }
+
             previous_position[axis_0]      = position[axis_0];
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
             // Bail mid-circle on system abort. Runtime command check already performed by mc_linear.
             if (sys.abort) {
-                return;
+                return Error::CommandAborted;
             }
         }
     }
     // Ensure last segment arrives at target location.
-    mc_linear(target, pl_data, previous_position);
+    return mc_linear(target, pl_data, previous_position);
 }
 
 // Execute dwell in seconds.

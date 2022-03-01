@@ -42,10 +42,10 @@ namespace Kinematics {
         void init();
         void config_kinematics();
 
-        bool kinematics_homing(AxisMask cycle_mask);
-        void kinematics_post_homing();
-        bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
-        void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
+        bool  kinematics_homing(AxisMask cycle_mask);
+        void  kinematics_post_homing();
+        Error cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
+        void  motors_to_cartesian(float* cartesian, float* motors, int n_axis);
 
     private:
         ::Kinematics::KinematicSystem* _system = nullptr;
@@ -61,11 +61,11 @@ namespace Kinematics {
         KinematicSystem& operator=(KinematicSystem&&) = delete;
 
         // Kinematic system interface.
-        virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) = 0;
-        virtual void init()                                                                         = 0;
-        virtual bool kinematics_homing(AxisMask cycle_mask)                                         = 0;
-        virtual void kinematics_post_homing()                                                       = 0;
-        virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis)               = 0;
+        virtual Error cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) = 0;
+        virtual void  init()                                                                         = 0;
+        virtual bool  kinematics_homing(AxisMask cycle_mask)                                         = 0;
+        virtual void  kinematics_post_homing()                                                       = 0;
+        virtual void  motors_to_cartesian(float* cartesian, float* motors, int n_axis)               = 0;
 
         // Configuration interface.
         void afterParse() override {}

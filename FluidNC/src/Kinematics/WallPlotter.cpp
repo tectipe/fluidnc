@@ -64,7 +64,7 @@ namespace Kinematics {
         pl_data = planner data (see the definition of this type to see what it is)
         position = an MAX_N_AXIS array of where the machine is starting from for this move
     */
-    bool WallPlotter::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
+    Error WallPlotter::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         float    dx, dy, dz;        // distances in each cartesian axis
         float    p_dx, p_dy, p_dz;  // distances in each polar axis
         uint32_t segment_count;     // number of segments the move will be broken in to.
@@ -90,8 +90,10 @@ namespace Kinematics {
             // Note that the left motor runs backward.
             float cables[MAX_N_AXIS] = { 0 - (last_left - zero_left), 0 + (last_right - zero_right), last_z };
 
-            if (!mc_move_motors(cables, pl_data)) {
-                return false;
+            Error err = mc_move_motors(cables, pl_data);
+
+            if (err != Error::Ok) {
+                return err;
             }
         }
 
@@ -118,7 +120,7 @@ namespace Kinematics {
             }
 #endif  // end USE_CHECKED_KINEMATICS
 
-            // mc_move_motors() returns false if a jog is cancelled.
+            // mc_move_motors() returns an error code if a jog is cancelled.
             // In that case we stop sending segments to the planner.
 
             last_left  = seg_left;
@@ -127,13 +129,14 @@ namespace Kinematics {
 
             // Note that the left motor runs backward.
             float cables[MAX_N_AXIS] = { 0 - (last_left - zero_left), 0 + (last_right - zero_right), seg_z };
-            if (!mc_move_motors(cables, pl_data)) {
-                return false;
+            Error err                = mc_move_motors(cables, pl_data);
+            if (err != Error::Ok) {
+                return err;
             }
         }
 
         // TO DO don't need a feedrate for rapids
-        return true;
+        return Error::Ok;
     }
 
     /*

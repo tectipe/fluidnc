@@ -14,7 +14,7 @@ namespace Kinematics {
         // Do nothing.
     }
 
-    bool Cartesian::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
+    Error Cartesian::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         // Motor space is cartesian space, so we do no transform.
         return mc_move_motors(target, pl_data);
     }

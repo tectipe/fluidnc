@@ -74,6 +74,7 @@ enum class Error : uint8_t {
     Eof                         = 112,  // Not necessarily an error
     AnotherInterfaceBusy        = 120,
     JogCancelled                = 130,
+    CommandAborted              = 131,
     BadPinSpecification         = 150,
     BadRuntimeConfigSetting     = 151,
     ConfigurationInvalid        = 152,
