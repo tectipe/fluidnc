@@ -278,7 +278,7 @@ namespace Machine {
         try {
             if (squaredOneSwitch(motors)) {
                 //log_info("POG Squaring");
-                run(motors, true, true);    // Approach slowly
+                run(motors, true, true);    // Approach fast
                 run(motors, false, false);  // Pulloff
                 run(motors, true, false);   // Approach slowly
                 run(motors, false, false);  // Pulloff
@@ -286,7 +286,7 @@ namespace Machine {
                 //log_info("Stress Free Squaring 0x" << String(motors, 16));
                 run(motors, true, true);    // Approach fast
                 run(motors, false, false);  // Pulloff
-                run(motors, true, false);   // Approach fast
+                run(motors, true, false);   // Approach slowly
                 run(motors, false, false);  // Pulloff
                 // TODO See if we need to do a nudge for asymmetric pulloffs.
                 auto  n_axis = config->_axes->_numberAxis;

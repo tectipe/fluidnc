@@ -282,9 +282,6 @@ static void alarm_msg(ExecAlarm alarm_code) {
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
-// Executes run-time commands, when required. This function is the primary state
-// machine that controls the various real-time features.
-// NOTE: Do not alter this unless you know exactly what you are doing!
 static void protocol_do_alarm() {
     switch (rtAlarm) {
         case ExecAlarm::None:
@@ -294,16 +291,13 @@ static void protocol_do_alarm() {
         case ExecAlarm::SoftLimit:
             sys.state = State::Alarm;  // Set system alarm state
             alarm_msg(rtAlarm);
+            if (infile) {  // Cancel file job
+                log_info("Canceling job on " << infile->path() << " at line " << infile->getLineNumber());
+                delete infile;
+                infile = nullptr;
+            }
             report_feedback_message(Message::CriticalEvent);
             rtReset = false;  // Disable any existing reset
-            do {
-                // Block everything except reset and status reports until user issues reset or power
-                // cycles. Hard limits typically occur while unattended or not paying attention. Gives
-                // the user and a GUI time to do what is needed before resetting, like killing the
-                // incoming stream. The same could be said about soft limits. While the position is not
-                // lost, continued streaming could cause a serious crash if by chance it gets executed.
-                pollChannels();  // Handle ^X realtime RESET command
-            } while (!rtReset);
             break;
         default:
             sys.state = State::Alarm;  // Set system alarm state
@@ -729,8 +723,11 @@ void protocol_do_macro(int macro_num) {
     config->_macros->run_macro(macro_num);
 }
 
+// Executes run-time commands, when required. This function is the primary state
+// machine that controls the various real-time features.
+// NOTE: Do not alter this unless you know exactly what you are doing!
 void protocol_exec_rt_system() {
-    protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
+    protocol_do_alarm();
 
 #ifdef DEBUG_STEPPING
     if (rtSegSeq) {

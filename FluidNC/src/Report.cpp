@@ -143,7 +143,7 @@ void report_status_message(Error status_code, Channel& channel) {
 }
 
 std::map<Message, const char*> MessageText = {
-    { Message::CriticalEvent, "Reset to continue" },
+    { Message::CriticalEvent, "Unlock with $X to continue" },
     { Message::AlarmLock, "'$H'|'$X' to unlock" },
     { Message::AlarmUnlock, "Caution: Unlocked" },
     { Message::Enabled, "Enabled" },
