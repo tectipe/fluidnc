@@ -104,7 +104,7 @@ void mc_cancel_jog() {
 // (1 minute)/feed_rate time.
 Error mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
     if (limits_soft_check(target)) {
-        return Error::SoftLimitError;
+        return Error::SoftLimitExceeded;
     }
     return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }

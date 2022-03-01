@@ -51,6 +51,7 @@ enum class Error : uint8_t {
     GcodeMaxValueExceeded       = 38,
     PParamMaxExceeded           = 39,
     CheckControlPins            = 40,
+    SoftLimitExceeded           = 41,
     FsFailedMount               = 60,  // SD Failed to mount
     FsFailedRead                = 61,  // SD Failed to read file
     FsFailedOpenDir             = 62,  // SD card failed to open directory

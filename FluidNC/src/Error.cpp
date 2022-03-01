@@ -47,6 +47,7 @@ std::map<Error, const char*> ErrorNames = {
     { Error::GcodeMaxValueExceeded, "Gcode max value exceeded" },
     { Error::PParamMaxExceeded, "P param max exceeded" },
     { Error::CheckControlPins, "Check control pins" },
+    { Error::SoftLimitExceeded, "Soft limit travel exceeded" },
     { Error::FsFailedMount, "Failed to mount device" },
     { Error::FsFailedRead, "Read failed" },
     { Error::FsFailedOpenDir, "Failed to open directory" },
