@@ -53,13 +53,17 @@ namespace Spindles {
         void spinDown() { setState(SpindleState::Disable, 0); }
 
         bool                  is_reversable;
-        volatile SpindleState _current_state = SpindleState::Unknown;
-        volatile SpindleSpeed _current_speed = 0;
+        volatile SpindleState _current_state     = SpindleState::Unknown;
+        volatile SpindleSpeed _current_speed     = 0;
+        uint32_t SpindleSpeed _current_dev_speed = 0;
 
         // scaler units are ms/rpm * 2^16.
         // The computation is deltaRPM * scaler >> 16
         uint32_t _spinup_ms   = 0;
         uint32_t _spindown_ms = 0;
+
+        uint32_t _up_max_delta_dev_speed   = 0;
+        uint32_t _down_max_delta_dev_speed = 0;
 
         int _tool = -1;
 
@@ -76,13 +80,14 @@ namespace Spindles {
         void afterParse() override;
 
         void group(Configuration::HandlerBase& handler) override {
-             if (use_delay_settings()) {
-                handler.item("spinup_ms", _spinup_ms);            
+            if (use_delay_settings()) {
+                handler.item("spinup_ms", _spinup_ms);
                 handler.item("spindown_ms", _spindown_ms);
-            }            
+                handler.item("_up_max_delta_dev_speed", _up_max_delta_dev_speed);
+                handler.item("_down_max_delta_dev_speed", _down_max_delta_dev_speed);
+            }
             handler.item("tool_num", _tool);
             handler.item("speed_map", _speeds);
-                
         }
 
         // Virtual base classes require a virtual destructor.

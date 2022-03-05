@@ -93,12 +93,12 @@ namespace Spindles {
         if (isRateAdjusted() && (state == SpindleState::Ccw)) {
             dev_speed = offSpeed();
             set_output(dev_speed);
+            set_enable(state != SpindleState::Disable);
+            spindleDelay(state, speed);
         } else {
-            set_output(dev_speed);
+            set_enable(state != SpindleState::Disable);
+            spindleRamp(state, speed, dev_speed);
         }
-
-        set_enable(state != SpindleState::Disable);
-        spindleDelay(state, speed);
     }
 
     // prints the startup message of the spindle config

@@ -207,3 +207,98 @@ namespace Spindles {
         _current_speed = speed;
     }
 }
+void Spindle::spindleRamp(SpindleState state, SpindleSpeed speed, uint32_t target_dev_speed, uint32_t maxDeltaDevSpeedUp, uint32_t maxDeltaDevSpeedDown)) {
+    uint32_t up = 0, down = 0;
+    switch (state) {
+        case SpindleState::Unknown:
+            // Unknown is only used for an initializer value,
+            // never as a new target state.
+            break;
+        case SpindleState::Disable:
+            switch (_current_state) {
+                case SpindleState::Unknown:
+                    down = maxSpeed();
+                    break;
+                case SpindleState::Disable:
+                    break;
+                case SpindleState::Cw:
+                case SpindleState::Ccw:
+                    down = _current_speed;
+                    break;
+            }
+        case SpindleState::Cw:
+            switch (_current_state) {
+                case SpindleState::Unknown:
+                    down = maxSpeed();
+                    // fall through
+                case SpindleState::Disable:
+                    up = speed;
+                    break;
+                case SpindleState::Cw:
+                    if (speed > _current_speed) {
+                        up = speed - _current_speed;
+                    } else {
+                        down = speed - _current_speed;
+                    }
+                    break;
+                case SpindleState::Ccw:
+                    down = _current_speed;
+                    up   = speed;
+                    break;
+            }
+        case SpindleState::Ccw:
+            switch (_current_state) {
+                case SpindleState::Unknown:
+                    down = maxSpeed();
+                    // fall through
+                case SpindleState::Disable:
+                    up = speed;
+                    break;
+                case SpindleState::Cw:
+                    down = _current_speed;
+                    up   = speed;
+                    break;
+                case SpindleState::Ccw:
+                    if (speed > _current_speed) {
+                        up = speed - _current_speed;
+                    } else {
+                        down = speed - _current_speed;
+                    }
+                    break;
+            }
+    }
+    uint32_t msecs;
+
+    if (down) {
+        msecs = down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms;
+    }
+    if (up) {
+        msecs = up < maxSpeed() ? _spinup_ms * up / maxSpeed() : _spinup_ms;
+    }
+
+    uint32_t interval;
+    int32_t  delta_dev_speed = target_dev_speed - _current_dev_speed;
+
+    if (_up_max_delta_dev_speed && (delta_dev_speed > _up_max_delta_dev_speed)) {
+        interval        = msecs * max_DeltaDevSpeedUp / delta_dev_speed;
+        delta_dev_speed = _up_max_delta_dev_speed;
+    } else if (_down_max_delta_dev_speed && (delta_dev_speed < (-_down_max_delta_dev_speed))) {
+        interval        = msecs * max_DeltaDevSpeedDown / delta_dev_speed;
+        delta_dev_speed = -_down_max_delta_dev_speed;
+    } else {
+        interval = msecs;
+    }
+
+    // delta_dev_speed is negative for ramp-down
+    while (msecs > interval) {
+        _current_dev_speed += delta_dev_speed;
+        set_output(_current_dev_speed);
+        delay(interval);
+        msecs -= interval;
+    }
+    _current_dev_speed = target_dev_speed;
+    set_output(_current_dev_speed);
+
+    _current_state = state;
+    _current_speed = speed;
+}
