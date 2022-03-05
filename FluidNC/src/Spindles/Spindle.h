@@ -19,6 +19,13 @@ namespace Spindles {
 
     // This is the base class. Do not use this as your spindle
     class Spindle : public Configuration::Configurable {
+    protected:
+        uint32_t _spinup_max_percent   = 100;
+        uint32_t _spindown_max_percent = 100;
+
+        uint32_t _up_max_delta_dev_speed   = 0;
+        uint32_t _down_max_delta_dev_speed = 0;
+
     public:
         Spindle() = default;
 
@@ -37,7 +44,9 @@ namespace Spindles {
 
         static void switchSpindle(uint8_t new_tool, SpindleList spindles, Spindle*& spindle);
 
-        void         spindleDelay(SpindleState state, SpindleSpeed speed);
+        uint32_t spindleDelayMsecs(SpindleState state, SpindleSpeed speed);
+        void     spindleDelay(SpindleState state, SpindleSpeed speed);
+
         virtual void init() = 0;  // not in constructor because this also gets called when $$ settings change
 
         // Used by Protocol.cpp to restore the state during a restart
@@ -45,7 +54,7 @@ namespace Spindles {
         SpindleState get_state() { return _current_state; };
         void         stop() { setState(SpindleState::Disable, 0); }
         virtual void config_message() = 0;
-        virtual bool isRateAdjusted();
+        virtual bool isRateAdjusted() { return false; }
         virtual bool use_delay_settings() const { return true; }
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
@@ -53,17 +62,13 @@ namespace Spindles {
         void spinDown() { setState(SpindleState::Disable, 0); }
 
         bool                  is_reversable;
-        volatile SpindleState _current_state     = SpindleState::Unknown;
-        volatile SpindleSpeed _current_speed     = 0;
-        uint32_t SpindleSpeed _current_dev_speed = 0;
+        volatile SpindleState _current_state = SpindleState::Unknown;
+        volatile SpindleSpeed _current_speed = 0;
 
         // scaler units are ms/rpm * 2^16.
         // The computation is deltaRPM * scaler >> 16
         uint32_t _spinup_ms   = 0;
         uint32_t _spindown_ms = 0;
-
-        uint32_t _up_max_delta_dev_speed   = 0;
-        uint32_t _down_max_delta_dev_speed = 0;
 
         int _tool = -1;
 
@@ -83,8 +88,6 @@ namespace Spindles {
             if (use_delay_settings()) {
                 handler.item("spinup_ms", _spinup_ms);
                 handler.item("spindown_ms", _spindown_ms);
-                handler.item("_up_max_delta_dev_speed", _up_max_delta_dev_speed);
-                handler.item("_down_max_delta_dev_speed", _down_max_delta_dev_speed);
             }
             handler.item("tool_num", _tool);
             handler.item("speed_map", _speeds);

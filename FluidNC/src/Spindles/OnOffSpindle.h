@@ -37,6 +37,9 @@ namespace Spindles {
 
         void init() override;
 
+        virtual bool use_ramping() { return use_delay_settings() && !isRateAdjusted(); }
+        void         spinUpDown(SpindleState state, SpindleSpeed speed, uint32_t new_dev_speed);
+
         void setSpeedfromISR(uint32_t dev_speed) override;
         void setState(SpindleState state, SpindleSpeed speed) override;
         void config_message() override;
@@ -49,6 +52,10 @@ namespace Spindles {
         void validate() const override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
+            if (use_ramping()) {
+                handler.item("spinup_max_percent", _spinup_max_percent, 0, 100);
+                handler.item("spindown_max_percent", _spindown_max_percent, 0, 100);
+            }
             handler.item("direction_pin", _direction_pin);
             groupCommon(handler);
         }
@@ -66,6 +73,8 @@ namespace Spindles {
         bool _disable_with_zero_speed = false;
         // _zero_speed_with_disable forces speed to 0 when disabled
         bool _zero_speed_with_disable = true;
+
+        uint32_t _current_dev_speed = 0;
 
         virtual void set_output(uint32_t speed);
         virtual void deinit();

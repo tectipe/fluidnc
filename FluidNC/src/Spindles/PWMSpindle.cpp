@@ -66,41 +66,6 @@ namespace Spindles {
         set_output(dev_speed);
     }
 
-    // XXX this is the same as OnOff::setState so it might be possible to combine them
-    void PWM::setState(SpindleState state, SpindleSpeed speed) {
-        if (sys.abort) {
-            return;  // Block during abort.
-        }
-
-        // We always use mapSpeed() with the unmodified input speed so it sets
-        // sys.spindle_speed correctly.
-        uint32_t dev_speed = mapSpeed(speed);
-        if (state == SpindleState::Disable) {  // Halt or set spindle direction and speed.
-            if (_zero_speed_with_disable) {
-                dev_speed = offSpeed();
-            }
-        } else {
-            // XXX this could wreak havoc if the direction is changed without first
-            // spinning down.
-            set_direction(state == SpindleState::Cw);
-        }
-
-        // rate adjusted spindles (laser) in M4 set power via the stepper engine, not here
-
-        // set_output must go first because of the way enable is used for level
-        // converters on some boards.
-
-        if (isRateAdjusted() && (state == SpindleState::Ccw)) {
-            dev_speed = offSpeed();
-            set_output(dev_speed);
-            set_enable(state != SpindleState::Disable);
-            spindleDelay(state, speed);
-        } else {
-            set_enable(state != SpindleState::Disable);
-            spindleRamp(state, speed, dev_speed);
-        }
-    }
-
     // prints the startup message of the spindle config
     void PWM::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Dir:" << _direction_pin.name()

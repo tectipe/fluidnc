@@ -13,10 +13,6 @@
 // ===================================== Laser ==============================================
 
 namespace Spindles {
-    bool Laser::isRateAdjusted() {
-        return true;  // can use M4 (CCW) laser mode.
-    }
-
     void Laser::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Freq:" << _pwm_freq
                         << "Hz Res:" << _pwm_precision << "bits Laser mode:On");

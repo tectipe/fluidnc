@@ -22,6 +22,8 @@ namespace Spindles {
 
         ~Relay() {}
 
+        bool use_ramping() override { return false; }
+
         // Configuration handlers:
 
         // Name of the configurable. Must match the name registered in the cpp file.

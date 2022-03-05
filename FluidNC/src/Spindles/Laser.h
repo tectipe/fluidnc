@@ -23,7 +23,7 @@ namespace Spindles {
         Laser& operator=(const Laser&) = delete;
         Laser& operator=(Laser&&) = delete;
 
-        bool isRateAdjusted() override;
+        bool isRateAdjusted() override { return true; };  // can use M4 (CCW) laser mode.
         void config_message() override;
         void get_pins_and_settings() override;
         void set_direction(bool Clockwise) override {};
