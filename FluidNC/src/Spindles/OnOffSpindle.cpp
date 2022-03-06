@@ -36,16 +36,24 @@ namespace Spindles {
     void OnOff::spinUpDown(SpindleState state, SpindleSpeed speed, uint32_t target_dev_speed) {
         uint32_t msecs = spindleDelayMsecs(state, speed);
 
+        log_info("State:" << state_name() << " speed:" << speed << " target_dev_speed:" << target_dev_speed);
+
         if (use_ramping()) {
             uint32_t interval        = msecs;
             int32_t  delta_dev_speed = target_dev_speed - _current_dev_speed;
+
+            log_info("msecs: " << msecs << "delta_dev_speed:" << delta_dev_speed << " _up_max_delta_dev_speed:" << _up_max_delta_dev_speed
+                                        << " _down_max_delta_dev_speed:" << _down_max_delta_dev_speed);
+
             if (delta_dev_speed != 0) {
-                if (_up_max_delta_dev_speed && (delta_dev_speed > _up_max_delta_dev_speed)) {
+                if (_up_max_delta_dev_speed && (delta_dev_speed > int32_t(_up_max_delta_dev_speed))) {                    
                     interval        = msecs * _up_max_delta_dev_speed / delta_dev_speed;
                     delta_dev_speed = _up_max_delta_dev_speed;
+                    log_info("Up interval:" << interval);
                 } else if (_down_max_delta_dev_speed && (delta_dev_speed < (-_down_max_delta_dev_speed))) {
-                    interval        = msecs * _down_max_delta_dev_speed / delta_dev_speed;
+                    interval        = msecs * _down_max_delta_dev_speed / (-delta_dev_speed);
                     delta_dev_speed = -_down_max_delta_dev_speed;
+                    log_info("Down interval:" << interval);
                 }
                 while (msecs > interval) {
                     // delta_dev_speed is negative for ramp-down
