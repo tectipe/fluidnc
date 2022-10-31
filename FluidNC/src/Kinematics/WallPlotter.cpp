@@ -55,7 +55,6 @@ namespace Kinematics {
         // Calculate the total cartesian move distance
         float cartesian_total_distance = vector_distance(position, target, n_axis);
         if (cartesian_total_distance == 0) {
-            mc_move_motors(target, pl_data);
             return true;
         }
 
@@ -207,7 +206,8 @@ namespace Kinematics {
         // Compute a and h.
         float a  = (left_radius2 - right_radius2 + distance2) / (2 * distance);
         float a2 = a * a;
-        float h  = sqrtf(left_radius2 - a2);
+        float h2 = left_radius2 - a2;
+        float h  = h2 < 0.0 ? 0.0 : sqrtf(h2);  // Say 0 for no solutions
 
         // Translate to absolute coordinates.
         x = _left_anchor_x + a;
