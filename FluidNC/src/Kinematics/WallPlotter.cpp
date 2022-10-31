@@ -52,43 +52,50 @@ namespace Kinematics {
 
         auto n_axis = config->_axes->_numberAxis;
 
-        float total_cartesian_distance = vector_distance(position, target, n_axis);
-        if (total_cartesian_distance == 0) {
+        // Calculate the total cartesian move distance
+        float cartesian_total_distance = vector_distance(position, target, n_axis);
+        if (cartesian_total_distance == 0) {
             mc_move_motors(target, pl_data);
             return true;
         }
 
-        float cartesian_feed_rate = pl_data->feed_rate;
+        // Calculate the distance in the XY plane
+        float xydist = vector_distance(target, position, 2);  // Only compute distance for X and Y
 
-        // calculate the total X,Y axis move distance
-        // Z axis is the same in both coord systems, so it does not undergo conversion
-        float xydist = vector_distance(target, position, 2);  // Only compute distance for both axes. X and Y
-        // Segment our G1 and G0 moves based on yaml file. If we choose a small enough _segment_length we can hide the nonlinearity
+        // Segment our G1 and G0 moves based on the configuration. If we choose a small enough _segment_length
+        // we can hide the nonlinearity.  The segmentation depends only on the XY distance
         segment_count = xydist / _segment_length;
+
         if (segment_count < 1) {  // Make sure there is at least one segment, even if there is no movement
             // We need to do this to make sure other things like S and M codes get updated properly by
             // the planner even if there is no movement??
             segment_count = 1;
         }
-        float cartesian_segment_length = total_cartesian_distance / segment_count;
 
-        // Calc length of each cartesian segment - the same for all segments
+        // Calculate the number to multiply by the motor segment length to get the motor feed rate.
+        // This number is same for all segments because it is computed in cartesian space where
+        // the segments are colinear and thus all the same length.
+        float cartesian_feed_scaler = pl_data->feed_rate / (cartesian_total_distance / segment_count);
+
+        // Calculate the per-axis length of a cartesian segment.
         float cartesian_segment_components[n_axis];
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             cartesian_segment_components[axis] = (target[axis] - position[axis]) / segment_count;
         }
 
+        // cartesian_segment_end[] is the endpoint of each segment in cartesian space.
+        // Its initial value is the current cartesian position.  For each segment, we
+        // update it by adding cartesian_segment_components[]
         float cartesian_segment_end[n_axis];
         copyAxes(cartesian_segment_end, position);
 
-        // Calculate desired cartesian feedrate distance ratio. Same for each seg.
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
-            // calculate the cartesian end point of the next segment
+            // Update the cartesian segment end point
             for (size_t axis = X_AXIS; axis < n_axis; axis++) {
                 cartesian_segment_end[axis] += cartesian_segment_components[axis];
             }
 
-            // Convert cartesian space coords to motor space
+            // Convert cartesian space coords to motor space (cable lengths)
             float motor_segment_end[n_axis];
             xy_to_lengths(cartesian_segment_end[X_AXIS], cartesian_segment_end[Y_AXIS], motor_segment_end[0], motor_segment_end[1]);
             for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
@@ -107,10 +114,15 @@ namespace Kinematics {
             // Adjust feedrate by the ratio of the segment lengths in motor and cartesian spaces,
             // accounting for all axes
             if (!pl_data->motion.rapidMotion) {  // Rapid motions ignore feedrate. Don't convert.
-                                                 // T=D/V, Tcart=Tmotor, Dcart/Vcart=Dmotor/Vmotor
-                                                 // Vmotor = Dmotor*(Vcart/Dcart)
+
+                // cartesian_feed_scaler is essentially the initial cartesian value of
+                // pl_data->feed_rate divided by the cartesian length of a segment.
+                // Thus cartesian_feed_scaler times motor_segment_length is
+                // cartesian_feed_rate * (motor_segment_length/cartesian_segment_length),
+                // i.e. the feed rate is scaled by the ratio between motor and cartesian
+                // segment lengths.
                 float motor_segment_length = vector_distance(last_motor_segment_end, motor_segment_end, n_axis);
-                pl_data->feed_rate         = cartesian_feed_rate * motor_segment_length / cartesian_segment_length;
+                pl_data->feed_rate         = cartesian_feed_scaler * motor_segment_length;
             }
 
             // TODO: G93 pl_data->motion.inverseTime logic?? Does this even make sense for wallplotter?
