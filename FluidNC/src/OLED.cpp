@@ -179,7 +179,7 @@ void OLED::show_radio_info() {
         if (_state == "Alarm") {
             wrapped_draw_string(18, _radio_info, ArialMT_Plain_10);
             wrapped_draw_string(30, _radio_addr, ArialMT_Plain_10);
-        } else if (_state != "Run") {
+        } else if (_state != "Run" && _state != "Jog" && _state != "Homing") {
             show(radioAddrLayout, _radio_addr);
         }
     } else {
@@ -205,9 +205,7 @@ void OLED::parse_numbers(std::string s, float* nums, int maxnums) {
     } while (nextpos != std::string::npos);
 }
 
-float* OLED::parse_axes(std::string s) {
-    static float axes[MAX_N_AXIS];
-
+void OLED::parse_axes(float* axes, std::string s) {
     size_t pos     = 0;
     size_t nextpos = -1;
     size_t axis    = 0;
@@ -219,7 +217,6 @@ float* OLED::parse_axes(std::string s) {
         }
         pos = nextpos + 1;
     } while (nextpos != std::string::npos);
-    return axes;
 }
 
 void OLED::parse_status_report() {
@@ -234,9 +231,10 @@ void OLED::parse_status_report() {
     bool probe              = false;
     bool limits[MAX_N_AXIS] = { false };
 
-    float* axes;
-    bool   isMpos = false;
-    _filename     = "";
+    float axes[MAX_N_AXIS];
+    float wcos[MAX_N_AXIS];
+    bool  isMpos = false;
+    _filename    = "";
 
     // ... handle it
     while (nextpos != std::string::npos) {
@@ -249,13 +247,13 @@ void OLED::parse_status_report() {
         auto value = field.substr(colon + 1);
         if (tag == "MPos") {
             // x,y,z,...
-            axes   = parse_axes(value);
+            parse_axes(axes, value);
             isMpos = true;
             continue;
         }
         if (tag == "WPos") {
             // x,y,z...
-            axes   = parse_axes(value);
+            parse_axes(axes, value);
             isMpos = false;
             continue;
         }
@@ -305,7 +303,7 @@ void OLED::parse_status_report() {
         }
         if (tag == "WCO") {
             // x,y,z,...
-            auto wcos = parse_axes(value);
+            parse_axes(wcos, value);
             continue;
         }
         if (tag == "Ov") {
